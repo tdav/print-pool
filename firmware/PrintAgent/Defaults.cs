@@ -4,6 +4,9 @@ namespace PrintAgent
     // Имя и пароль Wi-Fi лежат в Secrets.cs, который в Git не попадает (образец — Secrets.cs.example).
     public static class Defaults
     {
+        // Сетевое имя платы: в рабочем режиме панель открывается по адресу http://myprintagent.local/
+        public const string HostName = "MyPrintAgent";
+
         public const string PrinterIp = "192.168.1.153";
         public const int PrinterPort = 9100;
         public const string BackendUrl = "http://192.168.1.210:5080";

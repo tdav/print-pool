@@ -1,8 +1,13 @@
 using System;
 using System.Device.Gpio;
 using System.Device.Wifi;
+using System.Net;
 using System.Net.NetworkInformation;
 using System.Threading;
+using Iot.Device.MulticastDns;
+using Iot.Device.MulticastDns.Entities;
+using Iot.Device.MulticastDns.Enum;
+using Iot.Device.MulticastDns.EventArgs;
 using nanoFramework.Networking;
 using nanoFramework.Runtime.Native;
 using PrintAgent.Core;
@@ -19,6 +24,7 @@ namespace PrintAgent
         private const string JournalFile = "journal";
 
         private static AgentConfig config;
+        private static string address = "";
 
         public static void Run(AgentConfig agentConfig)
         {
@@ -75,7 +81,21 @@ namespace PrintAgent
                 }
             }
 
+            address = ip;
             AdminServer.Start(config, "work", config.WifiSsid, ip);
+
+            // Сетевое имя: плата сама отвечает на запросы mDNS об имени MyPrintAgent.local.
+            // Сбой этой службы не должен останавливать печать.
+            try
+            {
+                MulticastDnsService mdns = new MulticastDnsService();
+                mdns.MessageReceived += OnNameQuery;
+                mdns.Start();
+            }
+            catch (Exception)
+            {
+            }
+
             new Thread(PollLoop).Start();
 
             // Три секунды удержания BOOT — принудительный вход в режим настройки.
@@ -90,6 +110,27 @@ namespace PrintAgent
                     ConfigStore.WriteText(ConfigStore.ModeFlag, "forced");
                     Power.RebootDevice();
                     Thread.Sleep(Timeout.Infinite);
+                }
+            }
+        }
+
+        // Обработчик запросов mDNS: отвечает своим адресом на вопрос об имени платы.
+        private static void OnNameQuery(object sender, MessageReceivedEventArgs e)
+        {
+            if (e.Message == null)
+            {
+                return;
+            }
+
+            string wanted = Defaults.HostName.ToLower() + ".local";
+            foreach (Question question in e.Message.GetQuestions())
+            {
+                string domain = question.Domain == null ? "" : question.Domain.ToLower().TrimEnd('.');
+                if (question.QueryType == DnsResourceType.A && domain == wanted)
+                {
+                    Response response = new Response();
+                    response.AddAnswer(new ARecord(question.Domain, IPAddress.Parse(address), 120));
+                    e.Response = response;
                 }
             }
         }
