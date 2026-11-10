@@ -131,7 +131,17 @@ namespace PrintAgent
                     // Проверяем копию: неверные значения не должны попасть в действующие настройки.
                     AgentConfig candidate = AgentConfig.CreateDefault(config.DeviceId);
                     candidate.WifiSsid = file.wifiSsid;
-                    candidate.WifiPassword = file.wifiPassword == null || file.wifiPassword.Length == 0 ? config.WifiPassword : file.wifiPassword;
+                    // Пустой пароль означает «оставить прежний» только для той же сети.
+                    // При смене имени сети сохранённый пароль к новой сети не переносится:
+                    // иначе плату можно было бы заставить предъявить его чужой точке доступа.
+                    if (file.wifiPassword != null && file.wifiPassword.Length > 0)
+                    {
+                        candidate.WifiPassword = file.wifiPassword;
+                    }
+                    else
+                    {
+                        candidate.WifiPassword = file.wifiSsid == config.WifiSsid ? config.WifiPassword : "";
+                    }
                     candidate.BackendUrl = file.backendUrl;
                     candidate.PrinterIp = file.printerIp;
                     candidate.PrinterPort = file.printerPort;
