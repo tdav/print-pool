@@ -108,7 +108,7 @@ var $=function(i){return document.getElementById(i)};
 var names={ready:['Готов','ok'],unknown:['Неизвестно',''],NO_PAPER:['Нет бумаги','wn'],COVER_OPEN:['Открыта крышка','wn'],PRINTER_UNREACHABLE:['Не отвечает','bd'],SEND_FAILED:['Сбой передачи','bd'],ok:['На связи','ok'],unreachable:['Недоступен','bd'],'bad-address':['Ошибка адреса','bd']};
 function pill(el,key){var n=names[key]||[key,''];el.textContent=n[0];el.className='pill '+n[1]}
 function msg(el,text,good){el.textContent=text;el.className='msg '+(good?'good':'bad')}
-function call(method,url,body){return fetch(url,{method:method,headers:body?{'Content-Type':'application/json'}:{},body:body?JSON.stringify(body):undefined}).then(function(r){return r.text().then(function(t){return{ok:r.ok,text:t}})})}
+function call(method,url,body){return fetch(url,{method:method,headers:method==='POST'?{'Content-Type':'application/json','X-PrintAgent':'1'}:{},body:body?JSON.stringify(body):undefined}).then(function(r){return r.text().then(function(t){return{ok:r.ok,text:t}})})}
 function loadState(){return call('GET','/api/state').then(function(r){var s=JSON.parse(r.text);
   var work=s.mode==='work';$('mode').textContent=work?'Рабочий режим':'Режим настройки';$('mode').className='pill '+(work?'ok':'wn');
   $('addr').textContent=s.ip;$('s-wifi').textContent=s.wifi||'—';$('s-wifi').className='pill '+(work?'ok':'wn');
