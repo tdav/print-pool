@@ -94,7 +94,6 @@ button:disabled{opacity:.5}
 
 <div class="msg" id="m-save"></div>
 <button type="button" class="main" id="b-save">Сохранить и перезагрузить</button>
-<div class="sub" id="diag"></div>
 </main>
 
 <div class="veil" id="veil" hidden>
@@ -144,9 +143,7 @@ $('b-copy').onclick=function(){var t=$('device-id').textContent;
 $('b-newid').onclick=function(){$('veil').hidden=false};
 $('d-cancel').onclick=function(){$('veil').hidden=true};
 $('d-ok').onclick=function(){$('veil').hidden=true;call('POST','/api/device-id/new').then(function(r){if(r.ok){$('device-id').textContent=r.text;msg($('m-id'),'Создан новый ID',true)}else msg($('m-id'),r.text)})};
-function diag(){var v=window.visualViewport;$('diag').textContent='экран '+innerWidth+' / страница '+document.documentElement.scrollWidth+' / плотность '+devicePixelRatio+(v?' / масштаб '+Math.round(v.scale*100)/100+' / видно '+Math.round(v.width):'')}
-diag();addEventListener('resize',diag);
-loadState().then(loadConfig).then(diag).catch(function(){msg($('m-save'),'Не удалось загрузить данные с платы')});
+loadState().then(loadConfig).catch(function(){msg($('m-save'),'Не удалось загрузить данные с платы')});
 </script>
 </body>
 </html>
