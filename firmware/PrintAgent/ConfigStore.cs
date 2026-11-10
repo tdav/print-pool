@@ -25,6 +25,7 @@ namespace PrintAgent
         public const string ModeFlag = "mode";          // "wifi" или "forced": при включении войти в режим настройки
         public const string ApTries = "ap-tries";       // счётчик перезагрузок ради точки доступа
         public const string LastError = "last-error";   // текст последнего необработанного исключения
+        public const string Crashes = "crashes";        // счётчик сбоев подряд до выхода в устойчивую работу
 
         private const string Root = "I:\\";
         private const string ConfigPath = "I:\\config.json";
@@ -92,6 +93,20 @@ namespace PrintAgent
             catch (Exception)
             {
                 return null;
+            }
+        }
+
+        // Счётчик из файла; 0, если файла нет или он испорчен (например, оборван потерей питания).
+        public static int ReadInt(string name)
+        {
+            try
+            {
+                string text = ReadText(name);
+                return text == null ? 0 : int.Parse(text);
+            }
+            catch (Exception)
+            {
+                return 0;
             }
         }
 

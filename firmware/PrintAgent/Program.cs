@@ -20,6 +20,7 @@ namespace PrintAgent
         {
             new Thread(Blink).Start();
 
+            bool work = false;
             try
             {
                 AgentConfig config = ConfigStore.Load();
@@ -42,6 +43,7 @@ namespace PrintAgent
                 }
                 else
                 {
+                    work = true;
                     WorkMode.Run(config);
                 }
             }
@@ -51,6 +53,19 @@ namespace PrintAgent
                 try
                 {
                     ConfigStore.WriteText(ConfigStore.LastError, ex.GetType().Name + ": " + ex.Message);
+
+                    // Рабочий режим упал три раза подряд: следующий запуск — в режим настройки,
+                    // иначе плата перезагружалась бы без конца и оставалась недоступной для настройки.
+                    int crashes = ConfigStore.ReadInt(ConfigStore.Crashes) + 1;
+                    if (work && crashes >= 3)
+                    {
+                        ConfigStore.WriteText(ConfigStore.ModeFlag, "wifi");
+                        ConfigStore.Delete(ConfigStore.Crashes);
+                    }
+                    else
+                    {
+                        ConfigStore.WriteText(ConfigStore.Crashes, crashes.ToString());
+                    }
                 }
                 catch (Exception)
                 {

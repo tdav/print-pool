@@ -31,13 +31,14 @@ namespace PrintAgent
     public class BackendClient
     {
         private readonly string baseUrl;
-        private readonly string deviceId;
+        // Настройки, а не копия ID: новый ID из админ-панели действует со следующего запроса.
+        private readonly AgentConfig config;
         private readonly HttpClient http;
 
-        public BackendClient(string baseUrl, string deviceId)
+        public BackendClient(string baseUrl, AgentConfig config)
         {
             this.baseUrl = baseUrl;
-            this.deviceId = deviceId;
+            this.config = config;
             this.http = new HttpClient();
             this.http.Timeout = TimeSpan.FromSeconds(10);
         }
@@ -51,7 +52,7 @@ namespace PrintAgent
             string body;
             try
             {
-                using (HttpResponseMessage response = this.http.Get(this.baseUrl + "/api/devices/" + this.deviceId + "/jobs/next"))
+                using (HttpResponseMessage response = this.http.Get(this.baseUrl + "/api/devices/" + this.config.DeviceId + "/jobs/next"))
                 {
                     int status = (int)response.StatusCode;
                     if (status != 200)
@@ -105,8 +106,8 @@ namespace PrintAgent
         // Возвращает код HTTP; 0 — бэкенд не ответил.
         public int PostResult(string jobId, bool success, string error)
         {
-            string json = "{\"deviceId\":\"" + this.deviceId + "\",\"success\":" + (success ? "true" : "false")
-                + (error == null ? "" : ",\"error\":\"" + error + "\"") + "}";
+            string json = "{\"deviceId\":" + AdminServer.Quote(this.config.DeviceId) + ",\"success\":" + (success ? "true" : "false")
+                + (error == null ? "" : ",\"error\":" + AdminServer.Quote(error)) + "}";
             try
             {
                 using (HttpResponseMessage response = this.http.Post(

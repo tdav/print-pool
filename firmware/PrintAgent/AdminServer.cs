@@ -239,7 +239,7 @@ namespace PrintAgent
         }
 
         // Строка JSON в кавычках с экранированием; null превращается в пустую строку.
-        private static string Quote(string text)
+        public static string Quote(string text)
         {
             if (text == null)
             {

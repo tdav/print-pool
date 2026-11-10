@@ -125,5 +125,52 @@ namespace PrintAgent.Core.Tests
         {
             Assert.False(JobJournal.IsDelivered(status));
         }
+
+        [Fact]
+        public void Format_Parse_Started_RoundTrip()
+        {
+            JournalEntry entry = new JournalEntry();
+            entry.JobId = "3f2a";
+            entry.State = JobJournal.Started;
+
+            JournalEntry parsed = JobJournal.Parse(JobJournal.Format(entry));
+
+            Assert.Equal("started|3f2a|.", JobJournal.Format(entry));
+            Assert.Equal(JobJournal.Started, parsed.State);
+            Assert.Equal("3f2a", parsed.JobId);
+        }
+
+        [Theory]
+        [InlineData(true, null, "finished|3f2a|1||.")]
+        [InlineData(false, "NO_PAPER", "finished|3f2a|0|NO_PAPER|.")]
+        public void Format_Parse_Finished_RoundTrip(bool success, string error, string text)
+        {
+            JournalEntry entry = new JournalEntry();
+            entry.JobId = "3f2a";
+            entry.State = JobJournal.Finished;
+            entry.Success = success;
+            entry.Error = error;
+
+            JournalEntry parsed = JobJournal.Parse(JobJournal.Format(entry));
+
+            Assert.Equal(text, JobJournal.Format(entry));
+            Assert.Equal(JobJournal.Finished, parsed.State);
+            Assert.Equal("3f2a", parsed.JobId);
+            Assert.Equal(success, parsed.Success);
+            Assert.Equal(error, parsed.Error);
+        }
+
+        // Запись, оборванная потерей питания на любом символе, не читается вовсе:
+        // иначе итог ушёл бы на усечённый ID, а чек напечатался бы второй раз.
+        [Fact]
+        public void Parse_AnyTruncation_ReturnsNull()
+        {
+            string full = "finished|3f2a|0|NO_PAPER|.";
+            Assert.Null(JobJournal.Parse(null));
+            for (int length = 0; length < full.Length; length++)
+            {
+                Assert.Null(JobJournal.Parse(full.Substring(0, length)));
+            }
+        }
     }
 }

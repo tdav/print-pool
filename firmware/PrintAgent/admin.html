@@ -109,7 +109,7 @@ button:disabled{opacity:.5}
 
 <script>
 var $=function(i){return document.getElementById(i)};
-var names={ready:['Готов','ok'],unknown:['Неизвестно',''],NO_PAPER:['Нет бумаги','wn'],COVER_OPEN:['Открыта крышка','wn'],PRINTER_UNREACHABLE:['Не отвечает','bd'],SEND_FAILED:['Сбой передачи','bd'],ok:['На связи','ok'],unreachable:['Недоступен','bd'],'bad-address':['Ошибка адреса','bd']};
+var names={ready:['Готов','ok'],unknown:['Неизвестно',''],NO_PAPER:['Нет бумаги','wn'],COVER_OPEN:['Открыта крышка','wn'],PRINTER_UNREACHABLE:['Не отвечает','bd'],SEND_FAILED:['Сбой передачи','bd'],ok:['На связи','ok'],unreachable:['Недоступен','bd'],'bad-address':['Ошибка адреса','bd'],error:['Ошибка сервера','bd']};
 function pill(el,key){var n=names[key]||[key,''];el.textContent=n[0];el.className='pill '+n[1]}
 function msg(el,text,good){el.textContent=text;el.className='msg '+(good?'good':'bad')}
 function call(method,url,body){return fetch(url,{method:method,headers:method==='POST'?{'Content-Type':'application/json','X-PrintAgent':'1'}:{},body:body?JSON.stringify(body):undefined}).then(function(r){return r.text().then(function(t){return{ok:r.ok,text:t}})})}

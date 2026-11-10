@@ -14,6 +14,10 @@ namespace PrintAgent
         private const int TimeoutMs = 5000;
         private const int ChunkSize = 512;
 
+        // Принтер держит одно соединение: панель и цикл опроса не должны обращаться к нему одновременно,
+        // иначе настоящий чек получает ошибку из-за того, что кто-то открыл панель.
+        private static readonly object Gate = new object();
+
         private readonly string ip;
         private readonly int port;
 
@@ -26,6 +30,8 @@ namespace PrintAgent
         // null — принтер готов; иначе код причины.
         public string CheckStatus()
         {
+            lock (Gate)
+            {
             Socket socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
             try
             {
@@ -48,11 +54,14 @@ namespace PrintAgent
             {
                 socket.Close();
             }
+            }
         }
 
         // null — чек отправлен; иначе код причины. Перед отправкой спрашивает состояние принтера.
         public string Print(byte[] data)
         {
+            lock (Gate)
+            {
             Socket socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
             try
             {
@@ -103,6 +112,7 @@ namespace PrintAgent
             finally
             {
                 socket.Close();
+            }
             }
         }
     }

@@ -21,7 +21,10 @@ namespace PrintAgent
         // Кнопка BOOT на плате: нажата — низкий уровень.
         private const int BootPin = 0;
         private const int WifiTimeoutMs = 60000;
+        // Отметка «начато» и итог лежат в разных файлах: запись итога не стирает отметку,
+        // и обрыв питания посреди записи не оставляет плату без сведений о напечатанном чеке.
         private const string JournalFile = "journal";
+        private const string DoneFile = "journal-done";
 
         private static AgentConfig config;
         private static string address = "";
@@ -39,8 +42,7 @@ namespace PrintAgent
                     WirelessAPConfiguration conf = WirelessAPConfiguration.GetAllWirelessAPConfigurations()[ni.SpecificConfigId];
                     if (conf.Options != WirelessAPConfiguration.ConfigurationOptions.None)
                     {
-                        string saved = ConfigStore.ReadText(ConfigStore.ApTries);
-                        int tries = saved == null ? 0 : int.Parse(saved);
+                        int tries = ConfigStore.ReadInt(ConfigStore.ApTries);
                         if (tries < 2)
                         {
                             ConfigStore.WriteText(ConfigStore.ApTries, (tries + 1).ToString());
@@ -97,6 +99,7 @@ namespace PrintAgent
             }
 
             new Thread(PollLoop).Start();
+            ConfigStore.Delete(ConfigStore.Crashes);
 
             // Три секунды удержания BOOT — принудительный вход в режим настройки.
             GpioPin boot = Program.Gpio.OpenPin(BootPin, PinMode.InputPullUp);
@@ -138,31 +141,17 @@ namespace PrintAgent
         // Точка входа потока опроса бэкенда. Ни один путь не завершает цикл.
         private static void PollLoop()
         {
-            BackendClient backend = new BackendClient(config.BackendUrl, config.DeviceId);
+            BackendClient backend = new BackendClient(config.BackendUrl, config);
             PrinterClient printer = new PrinterClient(config.PrinterIp, config.PrinterPort);
 
-            // Запись журнала: "started|ID" или "finished|ID|1 или 0|код ошибки".
-            JournalEntry saved = null;
-            try
+            // Итог, который ещё не доставлен бэкенду. После включения это может быть прерванная печать.
+            // Сначала целый файл итога; если его нет или он оборван — отметка «начато».
+            JournalEntry pending = JobJournal.OnBoot(JobJournal.Parse(ConfigStore.ReadText(DoneFile)));
+            if (pending == null)
             {
-                string text = ConfigStore.ReadText(JournalFile);
-                if (text != null)
-                {
-                    string[] parts = text.Split('|');
-                    saved = new JournalEntry();
-                    saved.State = parts[0];
-                    saved.JobId = parts.Length > 1 ? parts[1] : null;
-                    saved.Success = parts.Length > 2 && parts[2] == "1";
-                    saved.Error = parts.Length > 3 && parts[3].Length > 0 ? parts[3] : null;
-                }
-            }
-            catch (Exception)
-            {
-                saved = null;
+                pending = JobJournal.OnBoot(JobJournal.Parse(ConfigStore.ReadText(JournalFile)));
             }
 
-            // Итог, который ещё не доставлен бэкенду. После включения это может быть прерванная печать.
-            JournalEntry pending = JobJournal.OnBoot(saved);
             int rejected = 0;
 
             while (true)
@@ -172,14 +161,12 @@ namespace PrintAgent
                     if (pending != null)
                     {
                         int status = backend.PostResult(pending.JobId, pending.Success, pending.Error);
-                        if (status == 400)
-                        {
-                            rejected++;
-                        }
+                        rejected = status == 400 ? rejected + 1 : 0;
 
                         // Ответ 400 три раза подряд: бэкенд не примет этот итог никогда, повтор прекращается.
                         if (JobJournal.IsDelivered(status) || rejected >= 3)
                         {
+                            ConfigStore.Delete(DoneFile);
                             ConfigStore.Delete(JournalFile);
                             AdminServer.Backend = "ok";
                             pending = null;
@@ -187,19 +174,23 @@ namespace PrintAgent
                             continue;
                         }
 
-                        AdminServer.Backend = status == 0 ? "unreachable" : "ok";
+                        AdminServer.Backend = status == 0 ? "unreachable" : "error";
                     }
                     else
                     {
                         string jobId;
                         ReceiptLine[] lines;
                         int status = backend.TryGetNext(out jobId, out lines);
-                        AdminServer.Backend = status == 0 ? "unreachable" : (status == 404 ? "bad-address" : "ok");
+                        AdminServer.Backend = status == 0 ? "unreachable"
+                            : (status == 404 ? "bad-address" : (status == 200 || status == 204 ? "ok" : "error"));
 
                         if (status == 200)
                         {
                             // Отметка «начато» до печати: после обрыва питания чек заново не печатается.
-                            ConfigStore.WriteText(JournalFile, JobJournal.Started + "|" + jobId);
+                            JournalEntry started = new JournalEntry();
+                            started.JobId = jobId;
+                            started.State = JobJournal.Started;
+                            ConfigStore.WriteText(JournalFile, JobJournal.Format(started));
 
                             string error;
                             if (lines == null)
@@ -223,7 +214,9 @@ namespace PrintAgent
                             pending.State = JobJournal.Finished;
                             pending.Success = error == null;
                             pending.Error = error;
-                            ConfigStore.WriteText(JournalFile, JobJournal.Finished + "|" + jobId + "|" + (error == null ? "1" : "0") + "|" + error);
+                            // Отметка «начато» удаляется только после того, как итог записан целиком.
+                            ConfigStore.WriteText(DoneFile, JobJournal.Format(pending));
+                            ConfigStore.Delete(JournalFile);
                             AdminServer.LastJob = (error == null ? "printed " : error + " ") + jobId.Substring(0, 8);
                             continue;
                         }

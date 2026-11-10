@@ -40,18 +40,11 @@ namespace PrintAgent
             WirelessAPConfiguration.ConfigurationOptions wanted =
                 WirelessAPConfiguration.ConfigurationOptions.Enable | WirelessAPConfiguration.ConfigurationOptions.AutoStart;
 
-            if (conf.Options != wanted || conf.Ssid != ApSsid || ap.IPv4Address != ApIp)
+            // Настройки точки доступа применяются только после перезагрузки.
+            // После двух попыток агент работает с тем, что есть: цикл перезагрузок хуже неточных настроек сети.
+            int tries = ConfigStore.ReadInt(ConfigStore.ApTries);
+            if ((conf.Options != wanted || conf.Ssid != ApSsid || ap.IPv4Address != ApIp) && tries < 2)
             {
-                // Настройки точки доступа применяются только после перезагрузки.
-                // Счётчик не даёт уйти в бесконечный цикл перезагрузок, если точка так и не поднялась.
-                string saved = ConfigStore.ReadText(ConfigStore.ApTries);
-                int tries = saved == null ? 0 : int.Parse(saved);
-                if (tries >= 2)
-                {
-                    ConfigStore.Delete(ConfigStore.ApTries);
-                    throw new InvalidOperationException("access point did not start after 2 reboots");
-                }
-
                 ConfigStore.WriteText(ConfigStore.ApTries, (tries + 1).ToString());
                 ap.EnableStaticIPv4(ApIp, "255.255.255.0", ApIp);
                 conf.Options = wanted;
@@ -72,6 +65,7 @@ namespace PrintAgent
             dhcp.Start(IPAddress.Parse(ApIp), new IPAddress(new byte[] { 255, 255, 255, 0 }), 1200);
 
             AdminServer.Start(config, "setup", ApSsid, ApIp);
+            ConfigStore.Delete(ConfigStore.Crashes);
 
             int seconds = 0;
             while (true)
