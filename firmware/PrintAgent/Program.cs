@@ -16,6 +16,10 @@ namespace PrintAgent
         // Полупериод мигания светодиода, меняется режимами.
         public static int BlinkMs = 500;
 
+        // Диагностика необъяснимых перезагрузок: сколько раз плата включалась и сколько работает с последнего включения.
+        public static int Boots;
+        public static long UptimeMs;
+
         public static void Main()
         {
             new Thread(Blink).Start();
@@ -23,6 +27,9 @@ namespace PrintAgent
             bool work = false;
             try
             {
+                Boots = ConfigStore.ReadInt(ConfigStore.Boots) + 1;
+                ConfigStore.WriteText(ConfigStore.Boots, Boots.ToString());
+
                 AgentConfig config = ConfigStore.Load();
                 if (config == null)
                 {
@@ -86,6 +93,8 @@ namespace PrintAgent
             {
                 led.Toggle();
                 Thread.Sleep(BlinkMs);
+                // ponytail: время работы считается по паузам мигания — системные часы скачут при синхронизации времени.
+                UptimeMs += BlinkMs;
             }
         }
     }

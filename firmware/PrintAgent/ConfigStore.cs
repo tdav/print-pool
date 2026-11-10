@@ -25,7 +25,8 @@ namespace PrintAgent
         public const string ModeFlag = "mode";          // "wifi" или "forced": при включении войти в режим настройки
         public const string ApTries = "ap-tries";       // счётчик перезагрузок ради точки доступа
         public const string LastError = "last-error";   // текст последнего необработанного исключения
-        public const string Crashes = "crashes";        // счётчик сбоев подряд до выхода в устойчивую работу
+        public const string Boots = "boots";            // счётчик включений платы за всё время
+        public const string Crashes = "crashes";       // счётчик сбоев подряд до выхода в устойчивую работу
 
         private const string Root = "I:\\";
         private const string ConfigPath = "I:\\config.json";
