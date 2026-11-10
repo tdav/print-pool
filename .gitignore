@@ -6,3 +6,7 @@ obj/
 .claude/process.md
 CLAUDE.local.md
 .impeccable/
+firmware/spike/
+AdminPage.g.cs
+.superpowers/
+TestResults/
