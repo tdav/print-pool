@@ -12,6 +12,8 @@ namespace PrintAgent
     public static class SetupMode
     {
         public const string ApIp = "192.168.4.1";
+        // Имя и пароль сети настройки одинаковы для всех плат: так решил заказчик.
+        private const string ApSsid = "MyPrintAgent";
         private const string ApPassword = "printagent";
         private const int WifiRetrySeconds = 300;
 
@@ -34,18 +36,11 @@ namespace PrintAgent
                 throw new InvalidOperationException("no WirelessAP interface");
             }
 
-            // Имя сети: PrintAgent- и четыре последних шестнадцатеричных знака MAC-адреса.
-            byte[] mac = ap.PhysicalAddress;
-            string hex = "0123456789ABCDEF";
-            string ssid = "PrintAgent-"
-                + hex[mac[mac.Length - 2] >> 4] + hex[mac[mac.Length - 2] & 15]
-                + hex[mac[mac.Length - 1] >> 4] + hex[mac[mac.Length - 1] & 15];
-
             WirelessAPConfiguration conf = WirelessAPConfiguration.GetAllWirelessAPConfigurations()[ap.SpecificConfigId];
             WirelessAPConfiguration.ConfigurationOptions wanted =
                 WirelessAPConfiguration.ConfigurationOptions.Enable | WirelessAPConfiguration.ConfigurationOptions.AutoStart;
 
-            if (conf.Options != wanted || conf.Ssid != ssid || ap.IPv4Address != ApIp)
+            if (conf.Options != wanted || conf.Ssid != ApSsid || ap.IPv4Address != ApIp)
             {
                 // Настройки точки доступа применяются только после перезагрузки.
                 // Счётчик не даёт уйти в бесконечный цикл перезагрузок, если точка так и не поднялась.
@@ -60,7 +55,7 @@ namespace PrintAgent
                 ConfigStore.WriteText(ConfigStore.ApTries, (tries + 1).ToString());
                 ap.EnableStaticIPv4(ApIp, "255.255.255.0", ApIp);
                 conf.Options = wanted;
-                conf.Ssid = ssid;
+                conf.Ssid = ApSsid;
                 conf.Password = ApPassword;
                 conf.Authentication = System.Net.NetworkInformation.AuthenticationType.WPA2;
                 conf.MaxConnections = 2;
@@ -76,7 +71,7 @@ namespace PrintAgent
             dhcp.CaptivePortalUrl = "http://" + ApIp;
             dhcp.Start(IPAddress.Parse(ApIp), new IPAddress(new byte[] { 255, 255, 255, 0 }), 1200);
 
-            AdminServer.Start(config, "setup", ssid, ApIp);
+            AdminServer.Start(config, "setup", ApSsid, ApIp);
 
             int seconds = 0;
             while (true)
