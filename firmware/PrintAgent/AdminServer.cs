@@ -71,7 +71,7 @@ namespace PrintAgent
                         + ",\"lastError\":" + Quote(lastError)
                         + ",\"uptime\":" + (Program.UptimeMs / 1000)
                         + ",\"boots\":" + Program.Boots
-                        + ",\"freeMem\":" + nanoFramework.Runtime.Native.GC.Run(false) + "}");
+                        + ",\"freeMem\":" + Program.FreeMem + "}");
                     return;
                 }
 

@@ -19,17 +19,25 @@ namespace PrintAgent
         // Диагностика необъяснимых перезагрузок: сколько раз плата включалась и сколько работает с последнего включения.
         public static int Boots;
         public static long UptimeMs;
+        public static uint FreeMem;
 
         public static void Main()
         {
             new Thread(Blink).Start();
 
-            bool work = false;
+            // Сбой счётчика не должен мешать запуску: диагностика не важнее печати.
             try
             {
                 Boots = ConfigStore.ReadInt(ConfigStore.Boots) + 1;
                 ConfigStore.WriteText(ConfigStore.Boots, Boots.ToString());
+            }
+            catch (Exception)
+            {
+            }
 
+            bool work = false;
+            try
+            {
                 AgentConfig config = ConfigStore.Load();
                 if (config == null)
                 {
@@ -89,12 +97,21 @@ namespace PrintAgent
         private static void Blink()
         {
             GpioPin led = Gpio.OpenPin(LedPin, PinMode.Output);
+            long sampledAt = 0;
             while (true)
             {
                 led.Toggle();
                 Thread.Sleep(BlinkMs);
                 // ponytail: время работы считается по паузам мигания — системные часы скачут при синхронизации времени.
                 UptimeMs += BlinkMs;
+
+                // Память замеряется здесь раз в 10 секунд, а не по запросу панели:
+                // чужой запрос не должен заставлять плату собирать мусор.
+                if (UptimeMs - sampledAt >= 10000 || FreeMem == 0)
+                {
+                    sampledAt = UptimeMs;
+                    FreeMem = nanoFramework.Runtime.Native.GC.Run(false);
+                }
             }
         }
     }
