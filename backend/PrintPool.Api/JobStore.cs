@@ -20,17 +20,9 @@ public sealed class JobStore(TimeProvider timeProvider, TimeSpan dispatchTimeout
         lock (this.sync)
         {
             var now = timeProvider.GetUtcNow();
-            for (var i = 0; i < this.jobs.Count; i++)
-            {
-                var j = this.jobs[i];
-                if (j.Status == JobStatus.Dispatched && now - j.DispatchedAt!.Value > dispatchTimeout)
-                {
-                    this.jobs[i] = j with { Status = JobStatus.Failed, Error = "DEVICE_TIMEOUT", FinishedAt = now };
-                    this.timedOut.Add(j.JobId);
-                }
-            }
+            this.ExpireOverdue(now);
 
-            var job = new PrintJob(Guid.NewGuid(), deviceId, lines, JobStatus.Queued, null, now, null, null);
+            var job = new PrintJob(Guid.NewGuid(), deviceId, (ReceiptLineDto[])lines.Clone(), JobStatus.Queued, null, now, null, null);
             this.jobs.Add(job);
             return job;
         }
@@ -41,15 +33,7 @@ public sealed class JobStore(TimeProvider timeProvider, TimeSpan dispatchTimeout
         lock (this.sync)
         {
             var now = timeProvider.GetUtcNow();
-            for (var i = 0; i < this.jobs.Count; i++)
-            {
-                var j = this.jobs[i];
-                if (j.Status == JobStatus.Dispatched && now - j.DispatchedAt!.Value > dispatchTimeout)
-                {
-                    this.jobs[i] = j with { Status = JobStatus.Failed, Error = "DEVICE_TIMEOUT", FinishedAt = now };
-                    this.timedOut.Add(j.JobId);
-                }
-            }
+            this.ExpireOverdue(now);
 
             for (var i = 0; i < this.jobs.Count; i++)
             {
@@ -82,15 +66,7 @@ public sealed class JobStore(TimeProvider timeProvider, TimeSpan dispatchTimeout
         lock (this.sync)
         {
             var now = timeProvider.GetUtcNow();
-            for (var i = 0; i < this.jobs.Count; i++)
-            {
-                var j = this.jobs[i];
-                if (j.Status == JobStatus.Dispatched && now - j.DispatchedAt!.Value > dispatchTimeout)
-                {
-                    this.jobs[i] = j with { Status = JobStatus.Failed, Error = "DEVICE_TIMEOUT", FinishedAt = now };
-                    this.timedOut.Add(j.JobId);
-                }
-            }
+            this.ExpireOverdue(now);
 
             var index = this.jobs.FindIndex(x => x.JobId == jobId);
             if (index < 0)
@@ -131,17 +107,23 @@ public sealed class JobStore(TimeProvider timeProvider, TimeSpan dispatchTimeout
         lock (this.sync)
         {
             var now = timeProvider.GetUtcNow();
-            for (var i = 0; i < this.jobs.Count; i++)
-            {
-                var j = this.jobs[i];
-                if (j.Status == JobStatus.Dispatched && now - j.DispatchedAt!.Value > dispatchTimeout)
-                {
-                    this.jobs[i] = j with { Status = JobStatus.Failed, Error = "DEVICE_TIMEOUT", FinishedAt = now };
-                    this.timedOut.Add(j.JobId);
-                }
-            }
+            this.ExpireOverdue(now);
 
             return this.jobs.Find(x => x.JobId == jobId);
+        }
+    }
+
+    // Переводит просроченные выданные задания в Failed; вызывается под блокировкой.
+    private void ExpireOverdue(DateTimeOffset now)
+    {
+        for (var i = 0; i < this.jobs.Count; i++)
+        {
+            var j = this.jobs[i];
+            if (j.Status == JobStatus.Dispatched && now - j.DispatchedAt!.Value > dispatchTimeout)
+            {
+                this.jobs[i] = j with { Status = JobStatus.Failed, Error = "DEVICE_TIMEOUT", FinishedAt = now };
+                this.timedOut.Add(j.JobId);
+            }
         }
     }
 }

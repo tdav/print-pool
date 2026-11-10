@@ -144,4 +144,76 @@ public class JobStoreTests
         Assert.Equal(ResultOutcome.WrongState, store.Complete(a.JobId, D1, false, "NO_PAPER"));
         Assert.Equal(JobStatus.Printed, store.Find(a.JobId)!.Status);
     }
+
+    [Fact]
+    public void Complete_AfterExplicitFailure_DifferentResult_Rejected()
+    {
+        var store = new JobStore(new FakeTimeProvider(), TimeSpan.FromSeconds(60));
+        var a = store.Add(D1, Lines);
+        store.TakeNext(D1);
+        store.Complete(a.JobId, D1, false, "NO_PAPER");
+        Assert.Equal(ResultOutcome.WrongState, store.Complete(a.JobId, D1, true, null));
+        Assert.Equal(JobStatus.Failed, store.Find(a.JobId)!.Status);
+    }
+
+    [Fact]
+    public void Complete_RepeatedFailure_AcceptedWithoutChange()
+    {
+        var store = new JobStore(new FakeTimeProvider(), TimeSpan.FromSeconds(60));
+        var a = store.Add(D1, Lines);
+        store.TakeNext(D1);
+        store.Complete(a.JobId, D1, false, "NO_PAPER");
+        var before = store.Find(a.JobId);
+        Assert.Equal(ResultOutcome.Accepted, store.Complete(a.JobId, D1, false, "NO_PAPER"));
+        Assert.Equal(before, store.Find(a.JobId));
+    }
+
+    [Fact]
+    public void TakeNext_AfterTimeoutOfA_ServesB()
+    {
+        var time = new FakeTimeProvider();
+        var store = new JobStore(time, TimeSpan.FromSeconds(60));
+        var a = store.Add(D1, Lines);
+        var b = store.Add(D1, Lines);
+        store.TakeNext(D1);
+        time.Advance(TimeSpan.FromSeconds(61));
+        Assert.Equal(b.JobId, store.TakeNext(D1)!.JobId);
+        Assert.Equal(JobStatus.Failed, store.Find(a.JobId)!.Status);
+    }
+
+    [Fact]
+    public void Complete_AfterTimeout_OtherDevice_WrongDeviceThenRightDeviceAccepted()
+    {
+        var time = new FakeTimeProvider();
+        var store = new JobStore(time, TimeSpan.FromSeconds(60));
+        var a = store.Add(D1, Lines);
+        store.TakeNext(D1);
+        time.Advance(TimeSpan.FromSeconds(61));
+        Assert.Equal(ResultOutcome.WrongDevice, store.Complete(a.JobId, D2, true, null));
+        Assert.Equal(ResultOutcome.Accepted, store.Complete(a.JobId, D1, true, null));
+        Assert.Equal(JobStatus.Printed, store.Find(a.JobId)!.Status);
+    }
+
+    [Fact]
+    public void Timeout_ExactlyAtLimit_StillDispatched_After61sFailed()
+    {
+        var time = new FakeTimeProvider();
+        var store = new JobStore(time, TimeSpan.FromSeconds(60));
+        var a = store.Add(D1, Lines);
+        store.TakeNext(D1);
+        time.Advance(TimeSpan.FromSeconds(60));
+        Assert.Equal(JobStatus.Dispatched, store.Find(a.JobId)!.Status);
+        time.Advance(TimeSpan.FromSeconds(1));
+        Assert.Equal(JobStatus.Failed, store.Find(a.JobId)!.Status);
+    }
+
+    [Fact]
+    public void Add_StoresOwnCopyOfLines()
+    {
+        var store = new JobStore(new FakeTimeProvider(), TimeSpan.FromSeconds(60));
+        var lines = new[] { new ReceiptLineDto("text", "hi", null, null, null, null, null, null, null) };
+        var job = store.Add(D1, lines);
+        lines[0] = new ReceiptLineDto("cut", null, null, null, null, null, null, null, null);
+        Assert.Equal("text", store.Find(job.JobId)!.Lines[0].Type);
+    }
 }
