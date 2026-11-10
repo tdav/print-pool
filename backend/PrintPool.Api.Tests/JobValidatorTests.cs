@@ -1,3 +1,5 @@
+using System.Text.Json;
+
 namespace PrintPool.Api.Tests;
 
 public class JobValidatorTests
@@ -6,19 +8,27 @@ public class JobValidatorTests
         string? left = null, string? right = null, string? value = null, int? lines = null)
         => new(type, text, align, null, size, left, right, value, lines);
 
+    // Задание из спеки дословно.
+    public const string SpecJob = """
+        {
+          "deviceId": "3f2a9c1e-0000-0000-0000-000000000000",
+          "lines": [
+            { "type": "text", "text": "CAFE ROMASHKA", "align": "center", "bold": true, "size": 2 },
+            { "type": "divider" },
+            { "type": "pair", "left": "Plov 1 x 35 000", "right": "35 000" },
+            { "type": "pair", "left": "TOTAL", "right": "45 000", "bold": true },
+            { "type": "qr", "value": "https://example.com/c/1045" },
+            { "type": "feed", "lines": 3 },
+            { "type": "cut" }
+          ]
+        }
+        """;
+
     [Fact]
     public void ValidJobFromSpec_ReturnsNull()
     {
-        ReceiptLineDto[] lines =
-        [
-            new("text", "Cafe", "center", true, 2, null, null, null, null),
-            new("divider", null, null, null, null, null, null, null, null),
-            new("pair", null, null, null, null, "Latte", "250", null, null),
-            new("qr", null, "center", null, null, null, null, "https://example.com/r/1", null),
-            new("feed", null, null, null, null, null, null, null, 3),
-            new("cut", null, null, null, null, null, null, null, null),
-        ];
-        Assert.Null(JobValidator.Validate(lines));
+        var job = JsonSerializer.Deserialize<CreateJobRequest>(SpecJob, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+        Assert.Null(JobValidator.Validate(job!.Lines!));
     }
 
     [Fact]

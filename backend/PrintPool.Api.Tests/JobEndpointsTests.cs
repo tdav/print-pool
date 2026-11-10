@@ -181,4 +181,67 @@ public class JobEndpointsTests(WebApplicationFactory<Program> factory) : IClassF
         var response = await client.GetAsync("/swagger/v1/swagger.json");
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
+
+    [Fact]
+    public async Task PostJob_SpecJob_Returns201()
+    {
+        var client = factory.CreateClient();
+        var response = await client.PostAsync("/api/jobs", Json(JobValidatorTests.SpecJob));
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task PostResult_BodyOver2Kb_Returns413()
+    {
+        using var kestrelFactory = new WebApplicationFactory<Program>();
+        kestrelFactory.UseKestrel(0);
+        var client = kestrelFactory.CreateClient();
+        var json = $$"""{"deviceId":"{{Guid.NewGuid()}}","success":false,"error":"{{new string('a', 2100)}}"}""";
+        var response = await client.PostAsync($"/api/jobs/{Guid.NewGuid()}/result", Json(json));
+        Assert.Equal(HttpStatusCode.RequestEntityTooLarge, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task PostResult_ErrorOver200Chars_Returns400()
+    {
+        var client = factory.CreateClient();
+        var json = $$"""{"deviceId":"{{Guid.NewGuid()}}","success":false,"error":"{{new string('a', 201)}}"}""";
+        var response = await client.PostAsync($"/api/jobs/{Guid.NewGuid()}/result", Json(json));
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task PostResult_MissingSuccess_Returns400()
+    {
+        var client = factory.CreateClient();
+        var response = await client.PostAsync($"/api/jobs/{Guid.NewGuid()}/result", Json($$"""{"deviceId":"{{Guid.NewGuid()}}"}"""));
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Swagger_DeclaresResponseCodes()
+    {
+        var client = factory.CreateClient();
+        var doc = await client.GetFromJsonAsync<JsonElement>("/swagger/v1/swagger.json");
+        var paths = doc.GetProperty("paths");
+        Assert.True(paths.GetProperty("/api/jobs").GetProperty("post").GetProperty("responses").TryGetProperty("201", out _));
+        Assert.True(paths.GetProperty("/api/jobs/{jobId}/result").GetProperty("post").GetProperty("responses").TryGetProperty("409", out _));
+    }
+
+    [Fact]
+    public async Task PostJob_Error400_BodyKeepsCyrillicUnescaped()
+    {
+        var client = factory.CreateClient();
+        var response = await client.PostAsync("/api/jobs", Json(JobJson(Guid.NewGuid(), """{"type":"image"}""")));
+        var raw = await response.Content.ReadAsStringAsync();
+        Assert.Contains("неизвестный", raw);
+    }
+
+    [Fact]
+    public void Startup_TimeoutZero_FailsWithClearException()
+    {
+        using var broken = factory.WithWebHostBuilder(b => b.UseSetting("PrintPool:DispatchTimeoutSeconds", "0"));
+        var ex = Assert.ThrowsAny<Exception>(() => broken.CreateClient());
+        Assert.Contains("DispatchTimeoutSeconds", ex.ToString());
+    }
 }

@@ -1,4 +1,6 @@
+using System.Text.Encodings.Web;
 using System.Text.Json.Serialization;
+using System.Text.Unicode;
 using PrintPool.Api;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -17,7 +19,12 @@ if (timeoutSeconds < 1)
 }
 
 builder.Services.AddSingleton(new JobStore(TimeProvider.System, TimeSpan.FromSeconds(timeoutSeconds)));
-builder.Services.ConfigureHttpJsonOptions(o => o.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
+builder.Services.ConfigureHttpJsonOptions(o =>
+{
+    o.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
+    // Кириллица в текстах ошибок не экранируется.
+    o.SerializerOptions.Encoder = JavaScriptEncoder.Create(UnicodeRanges.BasicLatin, UnicodeRanges.Cyrillic);
+});
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
