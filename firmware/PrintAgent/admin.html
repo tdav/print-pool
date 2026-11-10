@@ -2,21 +2,24 @@
 <html lang="ru">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
 <title>PrintAgent</title>
 <style>
 :root{--bg:#f2f4f7;--card:#fff;--fg:#17202e;--mut:#5b6779;--line:#d5dbe5;--acc:#1d4fa3;--on:#fff;--ok:#1a7a4c;--okb:#dff3e8;--wn:#8a5a00;--wnb:#fbeed0;--bd:#a3322b;--bdb:#f8e0de}
 @media(prefers-color-scheme:dark){:root{--bg:#10151d;--card:#19212c;--fg:#e6ebf2;--mut:#9aa6b8;--line:#2c3746;--acc:#7fa8ee;--on:#10151d;--ok:#6fd3a0;--okb:#14321f;--wn:#f0c060;--wnb:#3a2c0c;--bd:#f09088;--bdb:#3d1a17;color-scheme:dark}}
-*{box-sizing:border-box}
+*{box-sizing:border-box;min-width:0}
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+html,body{width:100%;max-width:100%;overflow-x:hidden}
 body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
-main{max-width:520px;margin:0 auto;padding:16px 12px 32px;display:flex;flex-direction:column;gap:12px}
-header{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:4px}
+main{width:100%;max-width:520px;margin:0 auto;padding:16px 12px 32px;display:flex;flex-direction:column;gap:12px}
+header{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px;padding:4px}
 h1{font-size:26px;margin:0}
 h2{font-size:20px;margin:0 0 10px}
 .sub{font-size:12.8px;color:var(--mut)}
-section{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px}
+section{width:100%;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px}
 .row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:6px 0}
-.row>span:first-child{color:var(--mut)}
+.row>span:first-child{color:var(--mut);flex:0 1 auto}
+.row>span:last-child{flex:0 1 auto;max-width:62%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pill{font-size:12.8px;font-weight:600;padding:3px 10px;border-radius:999px;background:var(--line);color:var(--fg);text-align:right}
 .pill.ok{background:var(--okb);color:var(--ok)}.pill.wn{background:var(--wnb);color:var(--wn)}.pill.bd{background:var(--bdb);color:var(--bd)}
 label{display:block;font-size:12.8px;color:var(--mut);margin:10px 0 4px}
@@ -24,13 +27,14 @@ input{width:100%;min-height:46px;padding:8px 12px;font-size:16px;color:var(--fg)
 input:focus{outline:2px solid var(--acc);outline-offset:1px}
 .two{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:10px}
 .btns{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px;margin-top:12px}
-button{min-height:46px;padding:8px 16px;font-size:16px;font-weight:600;color:var(--fg);background:transparent;border:1px solid var(--line);border-radius:8px}
+.btns>button{flex:1 1 130px;max-width:100%}
+button{min-height:46px;padding:8px 12px;max-width:100%;white-space:normal;font-size:16px;font-weight:600;color:var(--fg);background:transparent;border:1px solid var(--line);border-radius:8px}
 button.main{background:var(--acc);color:var(--on);border-color:var(--acc)}
 button:disabled{opacity:.5}
-.id{font:16px/1.4 ui-monospace,Consolas,monospace;word-break:break-all}
+.id{font:16px/1.4 ui-monospace,Consolas,monospace;word-break:break-all;overflow-wrap:anywhere}
 .msg{font-size:12.8px;min-height:20px;margin-top:8px}.msg.bad{color:var(--bd)}.msg.good{color:var(--ok)}
 .note{font-size:12.8px;color:var(--mut);margin-top:8px}
-.veil{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:16px}
+.veil{position:fixed;top:0;right:0;bottom:0;left:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:16px}
 .veil[hidden]{display:none}
 .dlg{background:var(--card);border-radius:12px;padding:16px;max-width:420px;width:100%}
 </style>
@@ -90,6 +94,7 @@ button:disabled{opacity:.5}
 
 <div class="msg" id="m-save"></div>
 <button type="button" class="main" id="b-save">Сохранить и перезагрузить</button>
+<div class="sub" id="diag"></div>
 </main>
 
 <div class="veil" id="veil" hidden>
@@ -139,7 +144,9 @@ $('b-copy').onclick=function(){var t=$('device-id').textContent;
 $('b-newid').onclick=function(){$('veil').hidden=false};
 $('d-cancel').onclick=function(){$('veil').hidden=true};
 $('d-ok').onclick=function(){$('veil').hidden=true;call('POST','/api/device-id/new').then(function(r){if(r.ok){$('device-id').textContent=r.text;msg($('m-id'),'Создан новый ID',true)}else msg($('m-id'),r.text)})};
-loadState().then(loadConfig).catch(function(){msg($('m-save'),'Не удалось загрузить данные с платы')});
+function diag(){var v=window.visualViewport;$('diag').textContent='экран '+innerWidth+' / страница '+document.documentElement.scrollWidth+' / плотность '+devicePixelRatio+(v?' / масштаб '+Math.round(v.scale*100)/100+' / видно '+Math.round(v.width):'')}
+diag();addEventListener('resize',diag);
+loadState().then(loadConfig).then(diag).catch(function(){msg($('m-save'),'Не удалось загрузить данные с платы')});
 </script>
 </body>
 </html>
