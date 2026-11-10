@@ -73,7 +73,11 @@ namespace PrintAgent.Core
             }
 
             string url = this.BackendUrl;
-            if (url == null || !url.StartsWith("http://") || url.Length == 7 || url[url.Length - 1] == '/')
+            // Префикс сравнивается посимвольно: StartsWith(string) зависит от культуры на .NET и порядковый на nanoFramework
+            if (url == null || url.Length <= 7
+                || url[0] != 'h' || url[1] != 't' || url[2] != 't' || url[3] != 'p'
+                || url[4] != ':' || url[5] != '/' || url[6] != '/'
+                || url[url.Length - 1] == '/')
             {
                 return "BackendUrl: нужен адрес вида http://host:port без завершающего /";
             }

@@ -37,6 +37,10 @@ namespace PrintAgent.Core.Tests
         [InlineData("1.2.3.4.5")]
         [InlineData("a.b.c.d")]
         [InlineData("1..2.3")]
+        [InlineData("1.2.3.")]
+        [InlineData("1.2.3.4.")]
+        [InlineData(".1.2.3")]
+        [InlineData("0001.1.1.1")]
         [InlineData("")]
         public void Validate_BadPrinterIp_ReturnsError(string ip)
         {
@@ -48,6 +52,7 @@ namespace PrintAgent.Core.Tests
         [Theory]
         [InlineData("0.0.0.0")]
         [InlineData("255.255.255.255")]
+        [InlineData("001.2.3.4")]
         public void Validate_BoundaryPrinterIp_Ok(string ip)
         {
             AgentConfig c = Valid();
@@ -99,6 +104,8 @@ namespace PrintAgent.Core.Tests
         [InlineData("https://host:5080")]
         [InlineData("http://host:5080/")]
         [InlineData("host:5080")]
+        [InlineData("http://")]
+        [InlineData("­http://host:5080")]
         [InlineData("")]
         public void Validate_BadBackendUrl_ReturnsError(string url)
         {
@@ -182,6 +189,38 @@ namespace PrintAgent.Core.Tests
             Assert.False(c.IsComplete());
             c = Valid();
             c.PrinterIp = "";
+            Assert.False(c.IsComplete());
+        }
+
+        [Fact]
+        public void Validate_Ssid1Char_Ok()
+        {
+            AgentConfig c = Valid();
+            c.WifiSsid = "a";
+            Assert.Null(c.Validate());
+        }
+
+        [Fact]
+        public void Validate_NullStringFields_ReturnError()
+        {
+            AgentConfig c = Valid();
+            c.PrinterIp = null;
+            Assert.NotNull(c.Validate());
+            c = Valid();
+            c.BackendUrl = null;
+            Assert.NotNull(c.Validate());
+            c = Valid();
+            c.WifiSsid = null;
+            Assert.NotNull(c.Validate());
+            c = Valid();
+            c.WifiPassword = null;
+            Assert.NotNull(c.Validate());
+        }
+
+        [Fact]
+        public void IsComplete_NullFields_False()
+        {
+            AgentConfig c = new AgentConfig();
             Assert.False(c.IsComplete());
         }
     }
