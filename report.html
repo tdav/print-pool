@@ -1,0 +1,234 @@
+<meta name="claude:viewport-fit-sides" content="cover">
+<title>Платы и .NET</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@500;700&family=Golos+Text:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Макет: одна колонка-отчёт; вердикт сверху, затем три карточки плат с фото, сводная таблица, схема «где живёт .NET». */
+:root {
+  --bg: #f3f5f8; --surface: #ffffff; --fg: #17202e; --muted: #5b6779; --line: #d5dbe5;
+  --accent: #1d4fa3; --accent-soft: #e3ebf8;
+  --good: #1a7a4c; --good-bg: #dff3e8; --warn: #8a5a00; --warn-bg: #fbeed0; --bad: #a3322b; --bad-bg: #f8e0de;
+  --display: "Onest", "Segoe UI", system-ui, sans-serif;
+  --body: "Golos Text","Segoe UI", system-ui, sans-serif;
+  --mono: "JetBrains Mono", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #10151d; --surface: #19212c; --fg: #e6ebf2; --muted: #9aa6b8; --line: #2c3746;
+  --accent: #7fa8ee; --accent-soft: #1d2b44;
+  --good: #6fd3a0; --good-bg: #14321f; --warn: #f0c060; --warn-bg: #3a2c0c; --bad: #f09088; --bad-bg: #3d1a17;
+  color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #10151d; --surface: #19212c; --fg: #e6ebf2; --muted: #9aa6b8; --line: #2c3746;
+  --accent: #7fa8ee; --accent-soft: #1d2b44;
+  --good: #6fd3a0; --good-bg: #14321f; --warn: #f0c060; --warn-bg: #3a2c0c; --bad: #f09088; --bad-bg: #3d1a17;
+  color-scheme: dark }
+
+body { background: var(--bg); color: var(--fg); font: 16px/1.6 var(--body); }
+.wrap { max-width: 980px; margin: 0 auto; padding-block: 40px 64px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: flex; flex-direction: column; gap: 44px; }
+h1, h2, h3 { font-family: var(--display); line-height: 1.2; text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(28px, 5vw, 40px); font-weight: 700; }
+h2 { font-size: 24px; font-weight: 700; }
+h3 { font-size: 19px; font-weight: 700; }
+p { margin: 0; max-width: 68ch; }
+section { display: flex; flex-direction: column; gap: 16px; }
+.eyebrow { font: 600 12px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+code, .mono { font-family: var(--mono); font-size: .9em; }
+code { background: var(--accent-soft); padding: 1px 6px; border-radius: 4px; }
+
+.verdict { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 22px 24px;
+  display: flex; flex-direction: column; gap: 12px; }
+.verdict strong { color: var(--accent); }
+
+.boards { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 20px; }
+.board { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; overflow: hidden;
+  display: flex; flex-direction: column; min-width: 0; }
+.board img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; display: block; }
+.board .body { padding: 18px; display: flex; flex-direction: column; gap: 12px; flex: 1; }
+.board p { font-size: 14.5px; }
+.rank { font: 600 12px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.pill { align-self: flex-start; font: 600 13px var(--body); padding: 3px 10px; border-radius: 999px; }
+.pill.good { background: var(--good-bg); color: var(--good); }
+.pill.warn { background: var(--warn-bg); color: var(--warn); }
+.pill.bad { background: var(--bad-bg); color: var(--bad); }
+dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; font-size: 14px; }
+dt { color: var(--muted); }
+dd { margin: 0; font-variant-numeric: tabular-nums; }
+.target { margin-top: auto; padding-top: 12px; border-top: 1px solid var(--line); font-size: 13.5px; color: var(--muted); }
+.target .mono { color: var(--fg); font-weight: 600; }
+
+.scroll { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
+table { border-collapse: collapse; width: 100%; min-width: 640px; font-size: 14.5px; font-variant-numeric: tabular-nums; }
+th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+tr:last-child td { border-bottom: 0; }
+th { font: 600 12px var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+td:first-child { color: var(--muted); white-space: nowrap; }
+.yes { color: var(--good); font-weight: 600; } .no { color: var(--bad); font-weight: 600; } .part { color: var(--warn); font-weight: 600; }
+
+.flow { display: grid; grid-template-columns: 1fr auto 1fr; gap: 14px; align-items: stretch; }
+.node { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px;
+  display: flex; flex-direction: column; gap: 8px; min-width: 0; font-size: 14.5px; }
+.node.main { border-color: var(--accent); }
+.link { align-self: center; text-align: center; font: 600 12px var(--mono); color: var(--muted); line-height: 1.5; }
+.link b { display: block; font-size: 20px; color: var(--accent); }
+@media (max-width: 640px) { .flow { grid-template-columns: 1fr; } }
+
+ul { margin: 0; padding-left: 20px; max-width: 68ch; display: flex; flex-direction: column; gap: 6px; }
+pre { margin: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px;
+  overflow-x: auto; font: 13.5px/1.6 var(--mono); }
+.sources { font-size: 13.5px; color: var(--muted); }
+a { color: var(--accent); }
+a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+</style>
+
+<div class="wrap">
+
+<header style="display:flex;flex-direction:column;gap:14px">
+  <div class="eyebrow">Отчёт по трём фото из папки images · 10.11.2026</div>
+  <h1>На какие из ваших плат можно писать на C#</h1>
+  <div class="verdict">
+    <p><strong>Коротко:</strong> на фото три микроконтроллера, а не компьютеры. Полный .NET 10 или .NET 11 не запускается ни на одном из них: ему нужна ОС (Linux, Windows) и сотни мегабайт памяти, а у этих плат от 264 КБ до 8 МБ.</p>
+    <p>На C# для них пишут через <strong>.NET nanoFramework</strong>. Это отдельная маленькая среда выполнения с урезанной библиотекой классов. Лучшая плата для этого у вас — <strong>ESP32-S3 (N16R8)</strong>.</p>
+    <p>«Raspberry Pi» на втором фото — это чип RP2040, микроконтроллер от Raspberry Pi. Одноплатного компьютера Raspberry Pi, на котором работал бы обычный .NET, среди фото нет.</p>
+  </div>
+</header>
+
+<section>
+  <div class="eyebrow">Что на фото</div>
+  <h2>Три платы, от лучшей к худшей для C#</h2>
+  <div class="boards">
+
+    <article class="board">
+      <img src="images/IMG_20250925_120603.jpg" alt="Плата с модулем ESP32-S3-WROOM-1 N16R8">
+      <div class="body">
+        <div class="rank">Место 1</div>
+        <h3>ESP32-S3-WROOM-1 N16R8</h3>
+        <span class="pill good">Оптимальный выбор</span>
+        <dl>
+          <dt>Ядро</dt><dd>2 × Xtensa LX7, 240 МГц</dd>
+          <dt>ОЗУ</dt><dd>512 КБ + 8 МБ PSRAM</dd>
+          <dt>Flash</dt><dd>16 МБ</dd>
+          <dt>Связь</dt><dd>Wi-Fi 2,4 ГГц, Bluetooth LE 5</dd>
+        </dl>
+        <p>Маркировка N16R8 на крышке модуля означает 16 МБ flash и 8 МБ PSRAM. Памяти хватает на HTTP, TLS, MQTT, JSON и экран одновременно. Это самая отлаженная платформа nanoFramework.</p>
+        <div class="target">Прошивка nanoFramework: <span class="mono">ESP32_S3_OCTAL</span></div>
+      </div>
+    </article>
+
+    <article class="board">
+      <img src="images/IMG_20250925_120831.jpg" alt="Плата CORE-ESP32 с чипом ESP32-C3">
+      <div class="body">
+        <div class="rank">Место 2</div>
+        <h3>CORE-ESP32 (ESP32-C3)</h3>
+        <span class="pill warn">Годится для простых задач</span>
+        <dl>
+          <dt>Ядро</dt><dd>1 × RISC-V, 160 МГц</dd>
+          <dt>ОЗУ</dt><dd>400 КБ</dd>
+          <dt>Flash</dt><dd>обычно 4 МБ</dd>
+          <dt>Связь</dt><dd>Wi-Fi 2,4 ГГц, Bluetooth LE 5</dd>
+        </dl>
+        <p>Работает с nanoFramework, но памяти мало: датчик плюс отправка данных по Wi-Fi помещаются, а TLS вместе с большим JSON уже впритык. Хороша как дешёвый беспроводной узел.</p>
+        <div class="target">Прошивка nanoFramework: <span class="mono">ESP32_C3</span></div>
+      </div>
+    </article>
+
+    <article class="board">
+      <img src="images/IMG_20250925_120741.jpg" alt="Маленькая плата с чипом Raspberry Pi RP2040">
+      <div class="body">
+        <div class="rank">Место 3</div>
+        <h3>RP2040 (плата типа RP2040-Zero)</h3>
+        <span class="pill bad">Для C# не советую</span>
+        <dl>
+          <dt>Ядро</dt><dd>2 × Cortex-M0+, 133 МГц</dd>
+          <dt>ОЗУ</dt><dd>264 КБ</dd>
+          <dt>Flash</dt><dd>обычно 2 МБ</dd>
+          <dt>Связь</dt><dd>нет</dd>
+        </dl>
+        <p>Поддержка в nanoFramework появилась недавно и неполная: есть GPIO, SPI, I2C, PWM и ADC, но нет UART, 1-Wire и PIO. Прошивка собрана под оригинальный Pico, на клоне часть выводов отличается. Этой плате больше подходят C/C++ или MicroPython.</p>
+        <div class="target">Прошивка nanoFramework: <span class="mono">RP_PICO_RP2040</span></div>
+      </div>
+    </article>
+
+  </div>
+  <p style="color:var(--muted);font-size:14px">Модель плат определена по маркировке на фото. Объём flash у ESP32-C3 и RP2040 на фото не читается, указаны типовые значения для таких плат.</p>
+</section>
+
+<section>
+  <div class="eyebrow">Сравнение</div>
+  <h2>Что доступно из C# на каждой плате</h2>
+  <div class="scroll">
+    <table>
+      <thead><tr><th></th><th>ESP32-S3 N16R8</th><th>ESP32-C3</th><th>RP2040</th></tr></thead>
+      <tbody>
+        <tr><td>Полный .NET 10 / 11</td><td class="no">нет</td><td class="no">нет</td><td class="no">нет</td></tr>
+        <tr><td>.NET nanoFramework</td><td class="yes">да, зрелая</td><td class="yes">да</td><td class="part">частично</td></tr>
+        <tr><td>GPIO, I2C, SPI, PWM, ADC</td><td class="yes">да</td><td class="yes">да</td><td class="yes">да</td></tr>
+        <tr><td>UART</td><td class="yes">да</td><td class="yes">да</td><td class="no">нет</td></tr>
+        <tr><td>Wi-Fi, HTTP, MQTT</td><td class="yes">да</td><td class="yes">да, память впритык</td><td class="no">нет радио</td></tr>
+        <tr><td>Bluetooth LE</td><td class="yes">да</td><td class="part">зависит от прошивки</td><td class="no">нет</td></tr>
+        <tr><td>Экран, камера</td><td class="yes">да</td><td class="part">простой экран</td><td class="no">нет</td></tr>
+        <tr><td>Отладка из Visual Studio</td><td class="yes">да, по USB</td><td class="yes">да, по USB</td><td class="part">не проверял</td></tr>
+        <tr><td>Память под управляемый код</td><td>мегабайты (PSRAM)</td><td>около 100–200 КБ</td><td>меньше 100 КБ</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p style="color:var(--muted);font-size:14px">Объём памяти под управляемый код в последней строке — моя оценка по объёму ОЗУ, не измерение.</p>
+</section>
+
+<section>
+  <div class="eyebrow">Архитектура</div>
+  <h2>Где здесь место для .NET 10 и .NET 11</h2>
+  <p>Настоящий .NET работает не на плате, а рядом с ней: на ПК, сервере или одноплатном Raspberry Pi 3/4/5 (Linux arm64). Плата собирает данные и управляет железом, а вся тяжёлая логика, база и веб-интерфейс остаются на привычном стеке.</p>
+  <div class="flow">
+    <div class="node">
+      <div class="eyebrow">Плата</div>
+      <h3>ESP32-S3</h3>
+      <p>C# на nanoFramework: датчики, реле, экран, Wi-Fi.</p>
+      <p class="mono" style="color:var(--muted)">проект .nfproj</p>
+    </div>
+    <div class="link"><b>⇄</b>Wi-Fi<br>MQTT / HTTP</div>
+    <div class="node main">
+      <div class="eyebrow">ПК, сервер или Raspberry Pi 4/5</div>
+      <h3>.NET 10 / .NET 11</h3>
+      <p>ASP.NET Core, база данных, Blazor, фоновые службы.</p>
+      <p class="mono" style="color:var(--muted)">обычный .csproj</p>
+    </div>
+  </div>
+  <ul>
+    <li><strong>.NET 10</strong> — действующий LTS-выпуск, для серверной части берите его.</li>
+    <li><strong>.NET 11</strong> — на странице загрузки Microsoft сейчас RC 3 от 25 октября 2026 года с пометкой go-live, финальный выпуск ожидается в ноябре.</li>
+    <li>Сборки для Linux Arm64 и Arm32 есть у обеих версий, так что Raspberry Pi 4/5 подойдёт как сервер.</li>
+  </ul>
+</section>
+
+<section>
+  <div class="eyebrow">Ограничения</div>
+  <h2>Чем nanoFramework отличается от обычного .NET</h2>
+  <ul>
+    <li>Это не .NET 10 и не .NET 11. Свой интерпретатор, свои NuGet-пакеты <code>nanoFramework.*</code>, обычные библиотеки с nuget.org не подключаются.</li>
+    <li>Нет <code>async/await</code>, вместо него потоки и события. Библиотека классов сильно урезана, generics поддерживаются ограниченно.</li>
+    <li>Код интерпретируется, поэтому жёсткий реалтайм (микросекундные тайминги) делается средствами прошивки, а не C#.</li>
+    <li>Проект собирается в Visual Studio с расширением nanoFramework, прошивка и отладка идут по USB.</li>
+  </ul>
+</section>
+
+<section>
+  <div class="eyebrow">Первый шаг</div>
+  <h2>Как прошить ESP32-S3</h2>
+  <p>Подключите плату по USB, посмотрите номер COM-порта в диспетчере устройств и замените <code>COM5</code> на свой.</p>
+  <pre>dotnet tool install -g nanoff
+nanoff --target ESP32_S3_OCTAL --serialport COM5 --update</pre>
+  <p>После этого плата появится в окне Device Explorer расширения nanoFramework в Visual Studio, и на неё можно загружать программу на C#. Я эти команды у вас не запускал: плата к этому компьютеру сейчас не проверялась.</p>
+</section>
+
+<section class="sources">
+  <div class="eyebrow">Источники</div>
+  <ul>
+    <li><a href="https://docs.nanoframework.net/content/reference-targets/">nanoFramework: список поддерживаемых плат</a></li>
+    <li><a href="https://github.com/nanoframework/nf-interpreter">nf-interpreter: имена прошивок ESP32_S3_OCTAL, ESP32_C3</a></li>
+    <li><a href="https://docs.nanoframework.net/content/rpipico/rp2040.html">nanoFramework: что поддерживается на RP2040</a></li>
+    <li><a href="https://dotnet.microsoft.com/en-us/download/dotnet/11.0">Microsoft: загрузка .NET 11</a></li>
+  </ul>
+</section>
+
+</div>

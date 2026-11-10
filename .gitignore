@@ -1,0 +1,8 @@
+packages/
+bin/
+obj/
+.vs/
+*.user
+.claude/process.md
+CLAUDE.local.md
+.impeccable/
