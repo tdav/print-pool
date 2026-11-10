@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="PrintPool.Api.Tests/PrintPool.Api.Tests.csproj" />
+  <Project Path="PrintPool.Api/PrintPool.Api.csproj" />
+</Solution>
