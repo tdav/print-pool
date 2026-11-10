@@ -16,7 +16,7 @@ namespace PrintAgent
 
         // Принтер держит одно соединение: панель и цикл опроса не должны обращаться к нему одновременно,
         // иначе настоящий чек получает ошибку из-за того, что кто-то открыл панель.
-        private static readonly object Gate = new object();
+        public static readonly object Gate = new object();
 
         private readonly string ip;
         private readonly int port;

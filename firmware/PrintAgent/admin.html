@@ -26,6 +26,11 @@ label{display:block;font-size:12.8px;color:var(--mut);margin:10px 0 4px}
 input{width:100%;min-height:46px;padding:8px 12px;font-size:16px;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:8px}
 input:focus{outline:2px solid var(--acc);outline-offset:1px}
 .two{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:10px}
+.two.eq{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+h3{font-size:16px;margin:18px 0 0;padding-top:14px;border-top:1px solid var(--line)}
+.hit{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--line)}
+.hit>span{font:16px/1.4 ui-monospace,Consolas,monospace}
+.hit>button{flex:0 0 auto}
 .btns{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px;margin-top:12px}
 .btns>button{flex:1 1 130px;max-width:100%}
 button{min-height:46px;padding:8px 12px;max-width:100%;white-space:normal;font-size:16px;font-weight:600;color:var(--fg);background:transparent;border:1px solid var(--line);border-radius:8px}
@@ -76,7 +81,19 @@ button:disabled{opacity:.5}
     <button type="button" id="b-test">Тестовая печать</button>
   </div>
   <div class="msg" id="m-printer"></div>
-  <div class="note" id="n-printer" hidden>Проверка принтера заработает после подключения платы к Wi-Fi.</div>
+  <div class="note" id="n-printer" hidden>Проверка и поиск принтера заработают после подключения платы к Wi-Fi.</div>
+  <h3>Поиск принтеров в сети</h3>
+  <div class="two eq">
+    <div><label for="scanFrom">С адреса</label><input id="scanFrom" inputmode="decimal" autocomplete="off" value="192.168.0.1"></div>
+    <div><label for="scanTo">По адрес</label><input id="scanTo" inputmode="decimal" autocomplete="off" value="192.168.1.254"></div>
+  </div>
+  <div class="btns">
+    <button type="button" id="b-stop" disabled>Остановить</button>
+    <button type="button" id="b-scan">Найти принтеры</button>
+  </div>
+  <div class="note">Плата проверяет один адрес за полторы секунды: 254 адреса — около 7 минут, две подсети — около 13. Печать во время поиска идёт с задержкой до 2 секунд.</div>
+  <div class="msg" id="m-scan"></div>
+  <div id="scan-list"></div>
 </section>
 
 <section>
@@ -118,7 +135,7 @@ function loadState(){return call('GET','/api/state').then(function(r){var s=JSON
   $('addr').textContent=s.ip;$('s-wifi').textContent=s.wifi||'—';$('s-wifi').className='pill '+(work?'ok':'wn');
   pill($('s-backend'),s.backend);pill($('s-printer'),s.printer);$('s-job').textContent=s.lastJob||'—';
   $('device-id').textContent=s.deviceId;$('s-error').textContent=s.lastError?'Последний сбой: '+s.lastError:'';
-  $('b-check').disabled=!work;$('b-test').disabled=!work;$('n-printer').hidden=work})}
+  $('b-check').disabled=!work;$('b-test').disabled=!work;$('b-scan').disabled=!work||scanning;$('n-printer').hidden=work})}
 function loadConfig(){return call('GET','/api/config').then(function(r){var c=JSON.parse(r.text);
   $('wifiSsid').value=c.wifiSsid;$('backendUrl').value=c.backendUrl;$('printerIp').value=c.printerIp;
   $('printerPort').value=c.printerPort;$('pollSeconds').value=c.pollSeconds;$('n-pass').hidden=!c.hasPassword})}
@@ -137,12 +154,36 @@ function printer(url,btn){btn.disabled=true;msg($('m-printer'),'Жду отве�
   call('POST',url).then(function(r){msg($('m-printer'),r.ok?r.text:(names[r.text]||[r.text])[0],r.ok);btn.disabled=false;loadState()}).catch(function(){msg($('m-printer'),'Плата не ответила');btn.disabled=false})}
 $('b-check').onclick=function(){printer('/api/printer/check',this)};
 $('b-test').onclick=function(){printer('/api/printer/test',this)};
+var scanning=false,scanT0=0;
+function left(s){if(!s.done)return'';var sec=Math.round((Date.now()-scanT0)/s.done*(s.total-s.done)/1000);
+  return', осталось '+(sec>=90?'около '+Math.round(sec/60)+' мин':sec+' с')}
+function okIp(v){var p=v.split('.');return p.length===4&&p.every(function(x){return/^\d{1,3}$/.test(x)&&+x<=255})}
+function showScan(s){var box=$('scan-list');box.textContent='';
+  s.found.forEach(function(ip){var row=document.createElement('div');row.className='hit';
+    var t=document.createElement('span');t.textContent=ip;var b=document.createElement('button');b.type='button';b.textContent='Выбрать';
+    b.onclick=function(){$('printerIp').value=ip;msg($('m-scan'),'Адрес '+ip+' подставлен. Нажмите «Сохранить и перезагрузить».',true)};
+    row.appendChild(t);row.appendChild(b);box.appendChild(row)});
+  if(s.error){msg($('m-scan'),s.error);return}
+  if(s.running)msg($('m-scan'),'Проверено '+s.done+' из '+s.total+', найдено: '+s.found.length+left(s),true);
+  else if(s.total){var head=s.stopped?'Поиск остановлен на '+s.done+' из '+s.total:'Поиск завершён';
+    msg($('m-scan'),s.found.length?head+', найдено: '+s.found.length:head+', устройств с открытым портом нет',s.found.length>0)}}
+function pollScan(){call('GET','/api/scan').then(function(r){var s=JSON.parse(r.text);showScan(s);
+  if(s.running)setTimeout(pollScan,1500);else{scanning=false;$('b-scan').disabled=false;$('b-stop').disabled=true}})
+  .catch(function(){setTimeout(pollScan,2000)})}
+$('b-scan').onclick=function(){var f=$('scanFrom').value.trim(),t=$('scanTo').value.trim(),port=$('printerPort').value.trim();
+  if(!okIp(f)||!okIp(t)){msg($('m-scan'),'Адреса диапазона: четыре числа от 0 до 255 через точку');return}
+  if(!/^\d+$/.test(port)||+port<1||+port>65535){msg($('m-scan'),'Порт принтера: число от 1 до 65535');return}
+  scanning=true;this.disabled=true;$('scan-list').textContent='';msg($('m-scan'),'Запускаю поиск…',true);
+  call('POST','/api/scan/start?from='+f+'&to='+t+'&port='+port).then(function(r){if(r.ok){scanT0=Date.now();$('b-stop').disabled=false;pollScan()}else{msg($('m-scan'),r.text);scanning=false;$('b-scan').disabled=false}})
+  .catch(function(){msg($('m-scan'),'Плата не ответила');scanning=false;$('b-scan').disabled=false})};
+$('b-stop').onclick=function(){this.disabled=true;call('POST','/api/scan/stop')};
 $('b-copy').onclick=function(){var t=$('device-id').textContent;
   if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(function(){msg($('m-id'),'Скопировано',true)},sel)}else sel();
   function sel(){var r=document.createRange();r.selectNodeContents($('device-id'));var s=getSelection();s.removeAllRanges();s.addRange(r);msg($('m-id'),'ID выделен — скопируйте его',true)}};
 $('b-newid').onclick=function(){$('veil').hidden=false};
 $('d-cancel').onclick=function(){$('veil').hidden=true};
 $('d-ok').onclick=function(){$('veil').hidden=true;call('POST','/api/device-id/new').then(function(r){if(r.ok){$('device-id').textContent=r.text;msg($('m-id'),'Создан новый ID',true)}else msg($('m-id'),r.text)})};
+call('GET','/api/scan').then(function(r){var s=JSON.parse(r.text);if(s.running){scanning=true;scanT0=Date.now();$('b-scan').disabled=true;$('b-stop').disabled=false;pollScan()}else if(s.total)showScan(s)}).catch(function(){});
 loadState().then(loadConfig).catch(function(){msg($('m-save'),'Не удалось загрузить данные с платы')});
 </script>
 </body>

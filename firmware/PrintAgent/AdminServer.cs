@@ -41,9 +41,11 @@ namespace PrintAgent
             try
             {
                 string url = e.Context.Request.RawUrl;
+                string queryText = "";
                 int query = url.IndexOf('?');
                 if (query >= 0)
                 {
+                    queryText = url.Substring(query + 1);
                     url = url.Substring(0, query);
                 }
 
@@ -169,6 +171,93 @@ namespace PrintAgent
                     config.DeviceId = Guid.NewGuid().ToString();
                     ConfigStore.Save(config);
                     Reply(response, 200, config.DeviceId);
+                    return;
+                }
+
+                if (method == "GET" && url == "/api/scan")
+                {
+                    string found = "";
+                    if (PortScanner.Found.Length > 0)
+                    {
+                        string[] ips = PortScanner.Found.Split(',');
+                        for (int i = 0; i < ips.Length; i++)
+                        {
+                            found += (i == 0 ? "" : ",") + Quote(ips[i]);
+                        }
+                    }
+
+                    response.ContentType = "application/json; charset=utf-8";
+                    WebServer.OutputAsStream(response,
+                        "{\"running\":" + (PortScanner.Running ? "true" : "false")
+                        + ",\"done\":" + PortScanner.Done
+                        + ",\"total\":" + PortScanner.Total
+                        + ",\"stopped\":" + (PortScanner.StopRequested ? "true" : "false")
+                        + ",\"found\":[" + found + "]"
+                        + ",\"error\":" + Quote(PortScanner.Error) + "}");
+                    return;
+                }
+
+                if (method == "POST" && url == "/api/scan/stop")
+                {
+                    PortScanner.StopRequested = true;
+                    Reply(response, 200, "Поиск останавливается.");
+                    return;
+                }
+
+                if (method == "POST" && url == "/api/scan/start")
+                {
+                    if (mode != "work")
+                    {
+                        Reply(response, 409, "Поиск принтеров заработает после подключения к Wi-Fi.");
+                        return;
+                    }
+
+                    // Параметры идут в строке запроса: from=адрес&to=адрес&port=число.
+                    string from = "";
+                    string to = "";
+                    int port = 0;
+                    string[] pairs = queryText.Split('&');
+                    for (int i = 0; i < pairs.Length; i++)
+                    {
+                        int eq = pairs[i].IndexOf('=');
+                        if (eq < 0)
+                        {
+                            continue;
+                        }
+
+                        string key = pairs[i].Substring(0, eq);
+                        string value = pairs[i].Substring(eq + 1);
+                        if (key == "from")
+                        {
+                            from = value;
+                        }
+                        else if (key == "to")
+                        {
+                            to = value;
+                        }
+                        else if (key == "port")
+                        {
+                            try
+                            {
+                                port = int.Parse(value);
+                            }
+                            catch (Exception)
+                            {
+                                port = 0;
+                            }
+                        }
+                    }
+
+                    string scanError = PortScanner.Start(from, to, port);
+                    if (scanError == null)
+                    {
+                        Reply(response, 200, "Поиск запущен.");
+                    }
+                    else
+                    {
+                        Reply(response, 400, scanError);
+                    }
+
                     return;
                 }
 
