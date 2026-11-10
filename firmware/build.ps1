@@ -67,6 +67,10 @@ if (Test-Path $adminHtml) {
     [IO.File]::WriteAllText((Join-Path $projectDir 'AdminPage.g.cs'), $generated, [Text.UTF8Encoding]::new($false))
 }
 
+if ((Test-Path (Join-Path $projectDir 'Secrets.cs.example')) -and -not (Test-Path (Join-Path $projectDir 'Secrets.cs'))) {
+    throw "Нет файла Secrets.cs. Скопируйте Secrets.cs.example в Secrets.cs и впишите имя и пароль Wi-Fi."
+}
+
 $sources = @(Get-ChildItem $projectDir -Recurse -Filter *.cs | Where-Object { $_.FullName -notmatch '\\(bin|obj|packages)\\' })
 if (Test-Path (Join-Path $projectDir 'uses-core.txt')) {
     $sources += Get-ChildItem (Join-Path $PSScriptRoot 'PrintAgent.Core') -Filter *.cs

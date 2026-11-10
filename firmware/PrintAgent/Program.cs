@@ -27,6 +27,11 @@ namespace PrintAgent
                 {
                     // ID создаётся один раз и сразу сохраняется, чтобы не меняться между включениями.
                     config = AgentConfig.CreateDefault(Guid.NewGuid().ToString());
+                    config.PrinterIp = Defaults.PrinterIp;
+                    config.PrinterPort = Defaults.PrinterPort;
+                    config.BackendUrl = Defaults.BackendUrl;
+                    config.WifiSsid = Defaults.WifiSsid;
+                    config.WifiPassword = Defaults.WifiPassword;
                     ConfigStore.Save(config);
                 }
 
