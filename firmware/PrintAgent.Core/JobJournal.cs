@@ -29,18 +29,14 @@ namespace PrintAgent.Core
                 return saved;
             }
 
-            if (saved.State == Started)
-            {
-                // Питание пропало посреди печати: чек мог напечататься частично, повторно не печатаем
-                JournalEntry failure = new JournalEntry();
-                failure.JobId = saved.JobId;
-                failure.State = Finished;
-                failure.Success = false;
-                failure.Error = "REBOOT_DURING_PRINT";
-                return failure;
-            }
-
-            return null;
+            // Любое другое состояние (started, повреждённое, неизвестное) считается прерванной печатью:
+            // молча забыть задание нельзя, бэкенд выдал бы его снова и чек напечатался бы дважды
+            JournalEntry failure = new JournalEntry();
+            failure.JobId = saved.JobId;
+            failure.State = Finished;
+            failure.Success = false;
+            failure.Error = "REBOOT_DURING_PRINT";
+            return failure;
         }
 
         /// <summary>Итог можно больше не повторять: принят (204), задания нет (404) или оно уже закрыто (409).</summary>
