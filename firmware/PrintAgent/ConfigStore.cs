@@ -17,7 +17,8 @@ namespace PrintAgent
         public int printerPort { get; set; }
         public int pollSeconds { get; set; }
         public int lineWidth { get; set; }
-        public int utcOffsetHours { get; set; }
+        public string printerName { get; set; }
+        public string printerId { get; set; }
     }
 
     // Файлы агента на внутреннем диске платы.
@@ -64,12 +65,21 @@ namespace PrintAgent
                     config.PollSeconds = file.pollSeconds;
                 }
 
-                // Файл прежней версии не содержит ширины строки: тогда и пояс остаётся по умолчанию.
-                // Иначе отсутствующий пояс читался бы как 0 и чеки шли бы по времени UTC.
-                if (file.lineWidth > 0)
+                // Файл прежней версии не содержит ширины строки, а испорченный может содержать любую:
+                // значение вне пределов заменяется шириной по умолчанию.
+                if (file.lineWidth >= 32 && file.lineWidth <= 64)
                 {
                     config.LineWidth = file.lineWidth;
-                    config.UtcOffsetHours = file.utcOffsetHours;
+                }
+
+                config.PrinterName = file.printerName == null ? "" : file.printerName;
+                config.PrinterId = file.printerId;
+                // У принтера из файла прежней версии ID ещё нет: создаём и сразу записываем,
+                // чтобы он не менялся при каждом включении.
+                if (config.PrinterId == null || config.PrinterId.Length == 0)
+                {
+                    config.PrinterId = Guid.NewGuid().ToString();
+                    Save(config);
                 }
 
                 return config;
@@ -91,7 +101,8 @@ namespace PrintAgent
             file.printerPort = config.PrinterPort;
             file.pollSeconds = config.PollSeconds;
             file.lineWidth = config.LineWidth;
-            file.utcOffsetHours = config.UtcOffsetHours;
+            file.printerName = config.PrinterName;
+            file.printerId = config.PrinterId;
             File.WriteAllText(ConfigPath, JsonConvert.SerializeObject(file));
         }
 

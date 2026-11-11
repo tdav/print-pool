@@ -108,7 +108,8 @@ namespace PrintAgent
                         + ",\"printerPort\":" + config.PrinterPort
                         + ",\"pollSeconds\":" + config.PollSeconds
                         + ",\"lineWidth\":" + config.LineWidth
-                        + ",\"utcOffsetHours\":" + config.UtcOffsetHours + "}");
+                        + ",\"printerName\":" + Quote(config.PrinterName)
+                        + ",\"printerId\":" + Quote(config.PrinterId) + "}");
                     return;
                 }
 
@@ -164,7 +165,20 @@ namespace PrintAgent
                     candidate.PrinterPort = file.printerPort;
                     candidate.PollSeconds = file.pollSeconds;
                     candidate.LineWidth = file.lineWidth;
-                    candidate.UtcOffsetHours = file.utcOffsetHours;
+                    candidate.PrinterName = file.printerName == null ? "" : file.printerName.Trim();
+                    if (candidate.PrinterName.Length > 40)
+                    {
+                        Reply(response, 400, "Название принтера: не длиннее 40 знаков.");
+                        return;
+                    }
+
+                    // ID принтера назначает плата. Другой адрес или порт — это другой принтер, ему нужен новый ID.
+                    candidate.PrinterId = config.PrinterId;
+                    if (candidate.PrinterId == null || candidate.PrinterId.Length == 0
+                        || candidate.PrinterIp != config.PrinterIp || candidate.PrinterPort != config.PrinterPort)
+                    {
+                        candidate.PrinterId = Guid.NewGuid().ToString();
+                    }
 
                     string error = candidate.Validate();
                     if (error != null)

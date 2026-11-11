@@ -7,6 +7,8 @@ namespace PrintAgent.Core
         public string WifiSsid;
         public string WifiPassword;
         public string BackendUrl;    // http://host:port, без завершающего /
+        public string PrinterName;   // название принтера для людей, до 40 знаков; на печать не влияет
+        public string PrinterId;     // GUID принтера строкой; создаётся платой, меняется при смене адреса принтера
         public string PrinterIp;
         public int PrinterPort;      // по умолчанию 9100
         public int PollSeconds;      // по умолчанию 5
@@ -20,6 +22,8 @@ namespace PrintAgent.Core
             c.WifiSsid = "";
             c.WifiPassword = "";
             c.BackendUrl = "";
+            c.PrinterName = "";
+            c.PrinterId = "";
             c.PrinterIp = "";
             c.PrinterPort = 9100;
             c.PollSeconds = 5;

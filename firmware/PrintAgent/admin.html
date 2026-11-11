@@ -73,14 +73,14 @@ button:disabled{opacity:.5}
 
 <section>
   <h2>Принтер</h2>
+  <label for="printerName">Название</label><input id="printerName" autocomplete="off" maxlength="40" placeholder="Кухня">
   <div class="two">
     <div><label for="printerIp">IP-адрес</label><input id="printerIp" inputmode="decimal" autocomplete="off" placeholder="192.168.1.100"></div>
     <div><label for="printerPort">Порт</label><input id="printerPort" inputmode="numeric" autocomplete="off" placeholder="9100"></div>
   </div>
-  <div class="two">
-    <div><label for="lineWidth">Ширина строки, знаков</label><input id="lineWidth" inputmode="numeric" autocomplete="off" placeholder="48"></div>
-    <div><label for="utcOffsetHours">Пояс, ч от UTC</label><input id="utcOffsetHours" inputmode="text" autocomplete="off" placeholder="5"></div>
-  </div>
+  <label for="lineWidth">Ширина строки, знаков</label><input id="lineWidth" inputmode="numeric" autocomplete="off" placeholder="48">
+  <label>ID принтера</label>
+  <div class="id" id="printer-id">—</div>
   <div class="btns">
     <button type="button" id="b-check">Проверить связь</button>
     <button type="button" id="b-test">Тестовая печать</button>
@@ -145,19 +145,18 @@ function loadState(){return call('GET','/api/state').then(function(r){var s=JSON
 function loadConfig(){return call('GET','/api/config').then(function(r){var c=JSON.parse(r.text);
   $('wifiSsid').value=c.wifiSsid;$('backendUrl').value=c.backendUrl;$('printerIp').value=c.printerIp;
   $('printerPort').value=c.printerPort;$('pollSeconds').value=c.pollSeconds;
-  $('lineWidth').value=c.lineWidth;$('utcOffsetHours').value=c.utcOffsetHours;$('n-pass').hidden=!c.hasPassword})}
+  $('lineWidth').value=c.lineWidth;$('printerName').value=c.printerName;$('printer-id').textContent=c.printerId||'будет создан при сохранении';$('n-pass').hidden=!c.hasPassword})}
 function check(){var ip=$('printerIp').value.trim(),p=ip.split('.'),okIp=p.length===4&&p.every(function(x){return/^\d{1,3}$/.test(x)&&+x<=255});
   if(!okIp)return'IP-адрес принтера: четыре числа от 0 до 255 через точку';
   var port=$('printerPort').value.trim();if(!/^\d+$/.test(port)||+port<1||+port>65535)return'Порт принтера: число от 1 до 65535';
   var poll=$('pollSeconds').value.trim();if(!/^\d+$/.test(poll)||+poll<1||+poll>3600)return'Период опроса: число от 1 до 3600';
   var w=$('lineWidth').value.trim();if(!/^\d+$/.test(w)||+w<32||+w>64)return'Ширина строки: число от 32 до 64';
-  var tz=$('utcOffsetHours').value.trim();if(!/^-?\d+$/.test(tz)||+tz<-12||+tz>14)return'Часовой пояс: целое число от -12 до 14';
   if(!$('wifiSsid').value)return'Введите имя сети Wi-Fi';
   var u=$('backendUrl').value.trim();if(u.indexOf('http://')!==0||u.length<8||u.slice(-1)==='/')return'Адрес бэкенда: http://адрес:порт, без / в конце';
   return''}
 $('b-save').onclick=function(){var e=check();if(e){msg($('m-save'),e);return}
   $('b-save').disabled=true;msg($('m-save'),'Сохраняю…',true);
-  call('POST','/api/config',{wifiSsid:$('wifiSsid').value,wifiPassword:$('wifiPassword').value,backendUrl:$('backendUrl').value.trim(),printerIp:$('printerIp').value.trim(),printerPort:+$('printerPort').value,pollSeconds:+$('pollSeconds').value,lineWidth:+$('lineWidth').value,utcOffsetHours:+$('utcOffsetHours').value})
+  call('POST','/api/config',{wifiSsid:$('wifiSsid').value,wifiPassword:$('wifiPassword').value,backendUrl:$('backendUrl').value.trim(),printerIp:$('printerIp').value.trim(),printerPort:+$('printerPort').value,pollSeconds:+$('pollSeconds').value,lineWidth:+$('lineWidth').value,printerName:$('printerName').value.trim()})
   .then(function(r){msg($('m-save'),r.text,r.ok);$('b-save').disabled=r.ok}).catch(function(){msg($('m-save'),'Плата не ответила');$('b-save').disabled=false})};
 function printer(url,btn){btn.disabled=true;msg($('m-printer'),'Жду ответа…',true);
   call('POST',url).then(function(r){msg($('m-printer'),r.ok?r.text:(names[r.text]||[r.text])[0],r.ok);btn.disabled=false;loadState()}).catch(function(){msg($('m-printer'),'Плата не ответила');btn.disabled=false})}
