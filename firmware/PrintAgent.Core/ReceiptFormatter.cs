@@ -54,7 +54,7 @@ namespace PrintAgent.Core
             {
                 string name = data.Items[i].Name == null ? "" : data.Items[i].Name;
                 string qty = data.Items[i].Quantity == null ? "" : data.Items[i].Quantity;
-                int budget = half - qty.Length - 3;
+                int budget = width - qty.Length - 3;
                 string first = name;
                 string rest = "";
                 if (name.Length > budget)
@@ -62,14 +62,14 @@ namespace PrintAgent.Core
                     first = name.Substring(0, budget);
                     rest = name.Substring(budget);
                 }
-                string row = first + new string('.', half - first.Length - qty.Length) + qty;
-                list.Add(new ReceiptLine { Type = "text", Text = row, Size = 2, Bold = true });
+                string row = first + new string('.', width - first.Length - qty.Length) + qty;
+                list.Add(new ReceiptLine { Type = "text", Text = row, Size = 3, Bold = true });
                 if (rest.Length > 0)
                 {
-                    string[] tail = Wrap(rest, half);
+                    string[] tail = Wrap(rest, width);
                     for (int t = 0; t < tail.Length; t++)
                     {
-                        list.Add(new ReceiptLine { Type = "text", Text = tail[t], Size = 2, Bold = true });
+                        list.Add(new ReceiptLine { Type = "text", Text = tail[t], Size = 3, Bold = true });
                     }
                 }
             }

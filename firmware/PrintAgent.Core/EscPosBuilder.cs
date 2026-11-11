@@ -21,10 +21,13 @@ namespace PrintAgent.Core
                         bool center = line.Align == "center";
                         bool right = line.Align == "right";
                         bool dbl = line.Size == 2;
+                        // Размер 3 — высокий шрифт: вдвое выше обычного при обычной ширине, в строке помещается width знаков
+                        bool tall = line.Size == 3;
                         if (center) { buf.Append(new byte[] { 0x1B, 0x61, 0x01 }); }
                         if (right) { buf.Append(new byte[] { 0x1B, 0x61, 0x02 }); }
                         if (line.Bold) { buf.Append(new byte[] { 0x1B, 0x45, 0x01 }); }
                         if (dbl) { buf.Append(new byte[] { 0x1D, 0x21, 0x11 }); }
+                        if (tall) { buf.Append(new byte[] { 0x1D, 0x21, 0x01 }); }
                         if (line.Type == "text")
                         {
                             buf.Append(Sanitize(line.Text));
@@ -35,7 +38,7 @@ namespace PrintAgent.Core
                         }
                         buf.Append(0x0A);
                         // возврат к обычному состоянию
-                        if (dbl) { buf.Append(new byte[] { 0x1D, 0x21, 0x00 }); }
+                        if (dbl || tall) { buf.Append(new byte[] { 0x1D, 0x21, 0x00 }); }
                         if (line.Bold) { buf.Append(new byte[] { 0x1B, 0x45, 0x00 }); }
                         if (center || right) { buf.Append(new byte[] { 0x1B, 0x61, 0x00 }); }
                         break;

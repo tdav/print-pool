@@ -68,18 +68,18 @@ namespace PrintAgent.Core.Tests
         {
             ReceiptLine[] r = ReceiptFormatter.Kitchen(KitchenData(), "11.11.2026 22:53", 48);
 
-            Assert.Equal(10, r.Length);
+            Assert.Equal(9, r.Length);
             AssertText(r[0], "11.11.2026 22:53", "center", 0, false);
             AssertText(r[1], "Hisob No: A20", "center", 0, false);
             AssertText(r[2], "Stol No: 12, Siniy zal", "center", 0, false);
             AssertText(r[3], "Kassir: Vlad", "center", 0, false);
             AssertText(r[4], "", null, 0, false);
-            AssertText(r[5], "SARBAST NEFILTR RAZL...1", null, 2, true);
-            AssertText(r[6], "IV", null, 2, true);
-            AssertText(r[7], "MNOGO MYASA 40SM.......2", null, 2, true);
-            Assert.Equal("feed", r[8].Type);
-            Assert.Equal(3, r[8].Lines);
-            Assert.Equal("cut", r[9].Type);
+            // Позиции — высоким шрифтом (размер 3) во всю ширину строки: 48 знаков
+            AssertText(r[5], "SARBAST NEFILTR RAZLIV" + new string('.', 25) + "1", null, 3, true);
+            AssertText(r[6], "MNOGO MYASA 40SM" + new string('.', 31) + "2", null, 3, true);
+            Assert.Equal("feed", r[7].Type);
+            Assert.Equal(3, r[7].Lines);
+            Assert.Equal("cut", r[8].Type);
         }
 
         [Fact]
@@ -95,10 +95,11 @@ namespace PrintAgent.Core.Tests
         public void Kitchen_FractionalQuantity_WrapsNameTail()
         {
             ReceiptData d = KitchenData();
-            d.Items = new ReceiptItem[] { Item("SHASHLIK MOL GOSHTI", "0,35", 0) };
+            // Название 47 знаков: в строку входит 48 - 4 - 3 = 41, остаток переносится
+            d.Items = new ReceiptItem[] { Item("SHASHLIK MOL GOSHTI S LUKOM I ZELENYU NA UGLYAH", "0,35", 0) };
             ReceiptLine[] r = ReceiptFormatter.Kitchen(d, "11.11.2026 22:53", 48);
-            AssertText(r[5], "SHASHLIK MOL GOSH...0,35", null, 2, true);
-            AssertText(r[6], "TI", null, 2, true);
+            AssertText(r[5], "SHASHLIK MOL GOSHTI S LUKOM I ZELENYU NA ...0,35", null, 3, true);
+            AssertText(r[6], "UGLYAH", null, 3, true);
         }
 
         [Fact]
@@ -275,21 +276,23 @@ namespace PrintAgent.Core.Tests
         }
 
         [Fact]
-        public void Kitchen_OddWidth33_BigLinesAre16()
+        public void Kitchen_OddWidth33_TallLinesFillWidth()
         {
+            // Высокий шрифт не шире обычного: строка позиции занимает всю ширину, а не половину
             ReceiptData d = KitchenData();
             ReceiptLine[] r = ReceiptFormatter.Kitchen(d, "11.11.2026 22:53", 33);
-            int big = 0;
+            int tall = 0;
             for (int i = 0; i < r.Length; i++)
             {
-                if (r[i].Size == 2)
+                Assert.NotEqual(2, r[i].Size);
+                if (r[i].Size == 3)
                 {
-                    big++;
-                    Assert.True(r[i].Text.Length <= 16);
+                    tall++;
+                    Assert.True(r[i].Text.Length <= 33);
                 }
             }
-            Assert.True(big >= 2);
-            Assert.Equal(16, r[5].Text.Length);
+            Assert.Equal(2, tall);
+            Assert.Equal(33, r[5].Text.Length);
         }
 
         [Theory]

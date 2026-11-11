@@ -36,6 +36,18 @@ namespace PrintAgent.Core.Tests
         }
 
         [Fact]
+        public void Text_Tall_DoublesHeightOnlyThenResets()
+        {
+            // Размер 3: GS ! 0x01 — высота вдвое, ширина обычная
+            ReceiptLine l = L("text");
+            l.Text = "A";
+            l.Size = 3;
+            Assert.Equal(
+                new byte[] { 0x1B, 0x40, 0x1D, 0x21, 0x01, 0x41, 0x0A, 0x1D, 0x21, 0x00 },
+                EscPosBuilder.Build(new ReceiptLine[] { l }, 48));
+        }
+
+        [Fact]
         public void Text_CenterBoldDouble_EmitsCommandsThenResets()
         {
             ReceiptLine l = L("text");
