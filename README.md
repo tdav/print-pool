@@ -1,63 +1,78 @@
-# Пул печати
+# Print Pool
 
-Печать чеков кафе по сети: сервис кладёт задание в очередь бэкенда, плата ESP32-S3 забирает его по Wi-Fi и печатает на чековом принтере, подключённом к локальной сети.
+Network receipt printing for a café: a service puts a print job into the backend queue, an ESP32-S3 board picks it up over Wi-Fi and prints it on a receipt printer connected to the local network.
 
 ```
-сервис-отправитель ──HTTP──▶ бэкенд (очередь заданий) ◀──HTTP, опрос── плата ESP32-S3 ──TCP 9100──▶ принтер
+sender service ──HTTP──▶ backend (job queue) ◀──HTTP polling── ESP32-S3 board ──TCP 9100──▶ printer
 ```
 
-Плата сама верстает чек: отправитель присылает тип чека и данные заказа, а не готовую картинку.
+The board lays out the receipt itself: the sender provides a receipt type and order data, not a rendered image.
 
-## Что умеет
+Русская версия: [README.ru.md](README.ru.md).
 
-- Три вида заданий: чек для кухни, счёт клиенту и произвольный чек из строк.
-- Очередь на каждое устройство, порядок печати сохраняется, задание не теряется при обрыве связи.
-- Защита от двойной печати после отключения питания.
-- Состояние принтера: нет бумаги, открыта крышка, не отвечает.
-- Настройка платы с телефона через веб-панель, в том числе поиск принтеров в сети.
+## Features
 
-## Описания
+- Three kinds of jobs: kitchen ticket, customer bill, and a free-form receipt built from lines.
+- A queue per device; print order is preserved and a job is not lost when the connection drops.
+- Protection against double printing after a power loss.
+- Printer status reporting: out of paper, cover open, not responding.
+- Board setup from a phone through a web panel, including a printer scan of the network.
 
-| Документ | О чём |
+## Built with
+
+| Part | Technology |
 |---|---|
-| [Устройство системы](docs/architecture.md) | Из чего состоит, как части общаются, раскладка репозитория |
-| [API бэкенда](docs/backend-api.md) | Четыре метода, состояния задания, коды ошибок |
-| [Форматы чеков](docs/receipt-formats.md) | JSON для кухни, счёта и произвольных строк, пределы полей, вид на бумаге |
-| [Плата и админ-панель](docs/agent.md) | Режимы работы, настройки, панель, поведение при сбоях |
-| [Сборка и запуск](docs/build-and-run.md) | Что установить, как запустить бэкенд, собрать и загрузить программу платы, прогнать тесты |
-| [Ограничения и открытые вопросы](docs/limitations.md) | Что не сделано, не проверено и что решить перед установкой у клиентов |
+| Backend | ASP.NET Core Minimal API on .NET 10, Swagger (Swashbuckle) |
+| Board program | C# on .NET nanoFramework 1.18 |
+| Board | ESP32-S3-WROOM-1 N16R8 (16 MB flash, 8 MB PSRAM), Wi-Fi |
+| Printer | Xprinter XP-Q80DA, 80 mm paper, ESC/POS over TCP port 9100 |
+| Tests | xUnit |
 
-## Быстрый старт
+Full list with versions: [Tech stack and hardware](docs/tech-stack.md).
 
-Бэкенд:
+## Documentation
+
+| Document | Contents |
+|---|---|
+| [Architecture](docs/architecture.md) | Parts of the system, how they talk, repository layout |
+| [Tech stack and hardware](docs/tech-stack.md) | Frameworks, libraries, tools and devices, with versions |
+| [Backend API](docs/backend-api.md) | Four endpoints, job states, error codes |
+| [Receipt formats](docs/receipt-formats.md) | JSON for kitchen tickets, bills and free-form lines, field limits, printed layout |
+| [Board and admin panel](docs/agent.md) | Operating modes, settings, the panel, failure behaviour |
+| [Build and run](docs/build-and-run.md) | Prerequisites, running the backend, building and flashing the board, tests |
+| [Limitations and open questions](docs/limitations.md) | What is not done, not verified, and what to decide before customer installs |
+
+## Quick start
+
+Backend:
 
 ```bash
 dotnet run --project backend/PrintPool.Api
 ```
 
-Swagger откроется на `http://localhost:5080/swagger`.
+Swagger opens at `http://localhost:5080/swagger`.
 
-Программа платы (плата на COM5):
+Board program (board on COM5):
 
 ```powershell
 firmware\build.ps1 -Project firmware\PrintAgent -Port COM5
 ```
 
-Перед первой сборкой скопируйте `firmware/PrintAgent/Secrets.cs.example` в `Secrets.cs` и впишите имя и пароль Wi-Fi. Подробности — в [Сборке и запуске](docs/build-and-run.md).
+Before the first build, copy `firmware/PrintAgent/Secrets.cs.example` to `Secrets.cs` and fill in the Wi-Fi name and password. Details: [Build and run](docs/build-and-run.md).
 
-## История проекта
+## Project history
 
-Проект делался по спецификациям и планам; в журналах записаны проверки на железе и принятые по ходу решения.
+The project was built from specifications and plans; the journals record hardware checks and decisions made along the way. These working documents are in Russian.
 
-| Документ | Содержание |
+| Document | Contents |
 |---|---|
-| [Спека: пул печати](docs/superpowers/specs/2026-11-10-print-pool-design.md) | Бэкенд, плата, админ-панель |
-| [Спека: типы чеков](docs/superpowers/specs/2026-11-11-receipt-types-design.md) | Чеки кухни и счёта, время на чеке |
-| [План: пул печати](docs/superpowers/plans/2026-11-10-print-pool.md) · [журнал](docs/superpowers/plans/2026-11-10-print-pool-progress.md) | Ревью, сценарии отказов, сканер сети |
-| [План: типы чеков](docs/superpowers/plans/2026-11-11-receipt-types.md) · [журнал](docs/superpowers/plans/2026-11-11-receipt-types-progress.md) | Пробная программа, ревью, правки заказчика |
+| [Spec: print pool](docs/superpowers/specs/2026-11-10-print-pool-design.md) | Backend, board, admin panel |
+| [Spec: receipt types](docs/superpowers/specs/2026-11-11-receipt-types-design.md) | Kitchen and bill receipts, time on the receipt |
+| [Plan: print pool](docs/superpowers/plans/2026-11-10-print-pool.md) · [journal](docs/superpowers/plans/2026-11-10-print-pool-progress.md) | Reviews, failure scenarios, network scanner |
+| [Plan: receipt types](docs/superpowers/plans/2026-11-11-receipt-types.md) · [journal](docs/superpowers/plans/2026-11-11-receipt-types-progress.md) | Spike program, reviews, customer changes |
 
-## Прочее в репозитории
+## Also in this repository
 
-- [report.html](report.html) — обзор плат заказчика: на какие из них можно писать на C#.
-- [Blink](Blink) — первая пробная программа для платы (мигание светодиодом), проект Visual Studio.
-- [images](images) — фотографии плат к отчёту.
+- [report.html](report.html) — a survey of the customer's boards: which of them can run C# (in Russian).
+- [Blink](Blink) — the first trial program for the board (LED blink), a Visual Studio project.
+- [images](images) — board photos for the report.

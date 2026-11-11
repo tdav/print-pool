@@ -1,64 +1,64 @@
-# Сборка и запуск
+# Build and run
 
-[← к оглавлению](../README.md)
+[← back to README](../README.md) · [Русская версия](ru/build-and-run.md)
 
-Команды рассчитаны на Windows и запускаются из корня репозитория.
+The commands are for Windows and run from the repository root.
 
-## Что установить
+## Prerequisites
 
-| Что | Зачем |
+| What | Why |
 |---|---|
-| .NET SDK 10 (версия закреплена в `global.json`: 10.0.302 или новее в пределах 10.0) | Бэкенд и тесты |
-| Visual Studio или Build Tools | Компилятор `csc.exe` для программы платы |
-| `nuget.exe` в `PATH` | Пакеты nanoFramework при первой сборке |
-| `nanoff` (`dotnet tool install -g nanoff`) | Загрузка программы на плату |
+| .NET SDK 10 (pinned in `global.json`: 10.0.302 or newer within 10.0) | Backend and tests |
+| Visual Studio or Build Tools | The `csc.exe` compiler for the board program |
+| `nuget.exe` on `PATH` | nanoFramework packages on the first build |
+| `nanoff` (`dotnet tool install -g nanoff`) | Deploying the program to the board |
 
-## Бэкенд
+## Backend
 
 ```bash
 dotnet run --project backend/PrintPool.Api
 ```
 
-Слушает порт 5080 на всех сетевых интерфейсах. Плата обращается к бэкенду по сети, поэтому брандмауэр компьютера должен пропускать входящие подключения на этот порт.
+It listens on port 5080 on all network interfaces. The board reaches the backend over the network, so the computer's firewall must allow inbound connections on that port.
 
-Проверка: `http://localhost:5080/swagger`.
+Check: `http://localhost:5080/swagger`.
 
-## Программа платы
+## Board program
 
-1. Скопируйте `firmware/PrintAgent/Secrets.cs.example` в `firmware/PrintAgent/Secrets.cs` и впишите имя и пароль сети Wi-Fi 2,4 ГГц.
-2. При необходимости поправьте адреса принтера и бэкенда в `firmware/PrintAgent/Defaults.cs`. Их можно задать и позже, в панели платы.
-3. Подключите плату по USB и узнайте номер её COM-порта.
+1. Copy `firmware/PrintAgent/Secrets.cs.example` to `firmware/PrintAgent/Secrets.cs` and fill in the name and password of a 2.4 GHz Wi-Fi network.
+2. If needed, adjust the printer and backend addresses in `firmware/PrintAgent/Defaults.cs`. They can also be set later in the board panel.
+3. Connect the board over USB and find its COM port number.
 
-Собрать и загрузить:
+Build and deploy:
 
 ```powershell
 firmware\build.ps1 -Project firmware\PrintAgent -Port COM5
 ```
 
-Только собрать, без платы:
+Build only, without a board:
 
 ```powershell
 firmware\build.ps1 -Project firmware\PrintAgent -NoDeploy
 ```
 
-Записать на новую плату саму среду nanoFramework, а затем программу:
+Flash the nanoFramework runtime to a new board first, then the program:
 
 ```powershell
 firmware\build.ps1 -Project firmware\PrintAgent -Port COM5 -Firmware
 ```
 
-Скрипт собирает программу без расширения Visual Studio: компилятор → Metadata Processor → образ → `nanoff`. Страница панели `admin.html` при сборке превращается в файл `AdminPage.g.cs`; править нужно `admin.html`.
+The script builds the program without the Visual Studio extension: compiler → Metadata Processor → image → `nanoff`. The panel page `admin.html` is turned into `AdminPage.g.cs` during the build; edit `admin.html`.
 
-## Первая настройка платы
+## First board setup
 
-1. После загрузки плата подключается к Wi-Fi из `Secrets.cs`. Если не вышло — поднимает сеть `MyPrintAgent` (пароль `printagent`), панель по адресу `http://192.168.4.1/`.
-2. В панели задайте адрес бэкенда, IP-адрес и порт принтера, нажмите «Сохранить и перезагрузить».
-3. В рабочем режиме нажмите «Проверить связь» и «Тестовая печать».
-4. Скопируйте ID устройства: его указывает отправитель в поле `deviceId`.
+1. After deployment the board joins the Wi-Fi network from `Secrets.cs`. If that fails, it raises the `MyPrintAgent` network (password `printagent`); the panel is at `http://192.168.4.1/`.
+2. In the panel set the backend address and the printer's IP address and port, then press "Save and reboot".
+3. In work mode press "Check connection" and "Test print".
+4. Copy the device ID: the sender puts it in the `deviceId` field.
 
-Подробнее о панели — в [Плате и админ-панели](agent.md).
+More about the panel: [Board and admin panel](agent.md).
 
-## Тесты
+## Tests
 
 ```bash
 dotnet test backend/PrintPool.Api.Tests
@@ -68,10 +68,10 @@ dotnet test backend/PrintPool.Api.Tests
 dotnet test firmware/PrintAgent.Core.Tests
 ```
 
-Запущенный бэкенд держит свои файлы сборки, и тесты бэкенда рядом с ним не соберутся: остановите его на время прогона.
+A running backend locks its build output, so the backend tests will not build next to it: stop it for the test run.
 
-Программа платы тестами на компьютере не покрыта — только её ядро. Сама программа проверяется сборкой, загрузкой и печатью.
+The board program is not covered by tests on the computer — only its core is. The program itself is verified by building, deploying and printing.
 
-## Известная помеха
+## Known nuisance
 
-`nuget.exe` версии 7.3 после работы может не завершиться. Поэтому `build.ps1` вызывает его, только когда пакета нет на диске. Если первая сборка зависла на строке «Пакеты», снимите процесс `nuget.exe` и запустите сборку ещё раз: пакеты к этому моменту уже скачаны.
+`nuget.exe` 7.3 may fail to exit after it finishes. For that reason `build.ps1` calls it only when a package is missing on disk. If the first build hangs at the packages step, kill the `nuget.exe` process and run the build again: the packages are already downloaded by then.

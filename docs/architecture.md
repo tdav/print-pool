@@ -1,49 +1,52 @@
-# Устройство системы
+# Architecture
 
-[← к оглавлению](../README.md)
+[← back to README](../README.md) · [Русская версия](ru/architecture.md)
 
-## Части
+## Parts
 
-| Часть | Что это | Где лежит |
+| Part | What it is | Location |
 |---|---|---|
-| Бэкенд | ASP.NET Core, .NET 10, minimal API со Swagger. Очередь заданий в памяти | `backend/PrintPool.Api` |
-| Агент | Программа на C# под .NET nanoFramework для платы ESP32-S3 | `firmware/PrintAgent` |
-| Ядро агента | Логика без железа: сборка команд принтера, вёрстка чеков, журнал печати, проверка настроек | `firmware/PrintAgent.Core` |
-| Принтер | Чековый Xprinter XP-Q80DA, бумага 80 мм, подключён к локальной сети, порт 9100, ESC/POS | — |
+| Backend | ASP.NET Core on .NET 10, Minimal API with Swagger. In-memory job queue | `backend/PrintPool.Api` |
+| Agent | A C# program on .NET nanoFramework for the ESP32-S3 board | `firmware/PrintAgent` |
+| Agent core | Hardware-free logic: printer command building, receipt layout, print journal, settings validation | `firmware/PrintAgent.Core` |
+| Printer | Xprinter XP-Q80DA receipt printer, 80 mm paper, on the local network, port 9100, ESC/POS | — |
 
-## Как идёт задание
+Versions and the full list of libraries: [Tech stack and hardware](tech-stack.md).
 
-1. Сервис-отправитель вызывает `POST /api/jobs` с ID устройства, типом чека и данными.
-2. Плата раз в 5 секунд спрашивает `GET /api/devices/{deviceId}/jobs/next`.
-3. Получив задание, плата записывает в свою память отметку «начато», спрашивает у принтера состояние, верстает чек и отправляет его по TCP.
-4. Плата сообщает итог: `POST /api/jobs/{jobId}/result`.
-5. Отправитель узнаёт итог через `GET /api/jobs/{jobId}`.
+## How a job travels
 
-Плата сама ходит к бэкенду, а не наоборот: бэкенду не нужно знать адрес платы, а плата может стоять за любым роутером.
+1. The sender service calls `POST /api/jobs` with the device ID, receipt type and data.
+2. The board asks `GET /api/devices/{deviceId}/jobs/next` every 5 seconds.
+3. Having received a job, the board writes a "started" mark to its own storage, asks the printer for its status, lays out the receipt and sends it over TCP.
+4. The board reports the outcome: `POST /api/jobs/{jobId}/result`.
+5. The sender reads the outcome through `GET /api/jobs/{jobId}`.
 
-## Почему ядро отдельно
+The board calls the backend, not the other way round: the backend does not need to know the board's address, and the board can sit behind any router.
 
-Код платы нельзя запустить на компьютере, поэтому всё, что не трогает железо, вынесено в `PrintAgent.Core`. Этот код компилируется дважды: вместе с программой платы под nanoFramework и отдельно под .NET 10 для тестов. Отсюда его ограничения: без LINQ, обобщённых коллекций, интерполяции строк, `decimal` и `double`.
+## Why the core is separate
 
-## Раскладка репозитория
+The board program cannot run on a computer, so everything that does not touch hardware lives in `PrintAgent.Core`. That code is compiled twice: together with the board program for nanoFramework, and on its own for .NET 10 tests. Hence its restrictions: no LINQ, no generic collections, no string interpolation, no `decimal` or `double`.
+
+## Repository layout
 
 ```
 backend/
-  PrintPool.Api/          бэкенд
-  PrintPool.Api.Tests/    тесты бэкенда (xUnit)
+  PrintPool.Api/          backend
+  PrintPool.Api.Tests/    backend tests (xUnit)
 firmware/
-  PrintAgent/             программа платы, admin.html — страница панели
-  PrintAgent.Core/        ядро агента
-  PrintAgent.Core.Tests/  тесты ядра (xUnit)
-  build.ps1               сборка и загрузка программы на плату
-docs/                     описания, спецификации, планы и журналы
-global.json               версия .NET SDK
+  PrintAgent/             board program; admin.html is the panel page
+  PrintAgent.Core/        agent core
+  PrintAgent.Core.Tests/  core tests (xUnit)
+  build.ps1               builds the board program and deploys it
+docs/                     documentation; ru/ holds the Russian versions;
+                          superpowers/ holds specs, plans and journals
+global.json               .NET SDK version
 ```
 
-## Чего в системе нет
+## What the system does not have
 
-- Базы данных: задания живут в памяти бэкенда и пропадают при его перезапуске.
-- Авторизации: ни у API бэкенда, ни у панели платы.
-- HTTPS: всё общение по HTTP внутри локальной сети.
+- A database: jobs live in backend memory and are gone after a restart.
+- Authorization: neither the backend API nor the board panel has any.
+- HTTPS: all traffic is plain HTTP inside the local network.
 
-Подробнее — в [Ограничениях](limitations.md).
+More in [Limitations](limitations.md).

@@ -1,58 +1,60 @@
-# API бэкенда
+# Backend API
 
-[← к оглавлению](../README.md)
+[← back to README](../README.md) · [Русская версия](ru/backend-api.md)
 
-Бэкенд слушает `http://0.0.0.0:5080`. Живое описание с примерами — Swagger: `http://localhost:5080/swagger`.
+The backend listens on `http://0.0.0.0:5080`. Live reference with examples — Swagger: `http://localhost:5080/swagger`.
 
-## Методы
+## Endpoints
 
-| Метод | Кто вызывает | Что делает |
+| Endpoint | Caller | What it does |
 |---|---|---|
-| `POST /api/jobs` | отправитель | Добавляет задание. Ответ 201: `{ "jobId": "...", "status": "Queued" }` |
-| `GET /api/devices/{deviceId}/jobs/next` | плата | Отдаёт следующее задание устройства (200) или «заданий нет» (204) |
-| `POST /api/jobs/{jobId}/result` | плата | Принимает итог: `{ "deviceId": "...", "success": true }` или `{ ..., "success": false, "error": "NO_PAPER" }` |
-| `GET /api/jobs/{jobId}` | отправитель | Состояние задания, время создания, выдачи и завершения |
+| `POST /api/jobs` | sender | Adds a job. Response 201: `{ "jobId": "...", "status": "Queued" }` |
+| `GET /api/devices/{deviceId}/jobs/next` | board | Returns the device's next job (200) or "no jobs" (204) |
+| `POST /api/jobs/{jobId}/result` | board | Accepts the outcome: `{ "deviceId": "...", "success": true }` or `{ ..., "success": false, "error": "NO_PAPER" }` |
+| `GET /api/jobs/{jobId}` | sender | Job state with creation, dispatch and finish times |
 
-Тела заданий описаны в [Форматах чеков](receipt-formats.md).
+Job bodies are described in [Receipt formats](receipt-formats.md).
 
-## Состояния задания
+## Job states
 
-`Queued` → `Dispatched` → `Printed` или `Failed` (с кодом причины в поле `error`).
+`Queued` → `Dispatched` → `Printed` or `Failed` (with a reason code in `error`).
 
-## Правила
+## Rules
 
-- Плата получает по одному заданию. Пока задание в состоянии `Dispatched`, метод выдачи отдаёт его же: порядок сохраняется, задание не теряется при обрыве связи.
-- Итог принимается только от того устройства, которому задание выдано.
-- Задание, выданное дольше 60 секунд назад без итога, получает `Failed` с причиной `DEVICE_TIMEOUT`. Если плата всё же пришлёт итог позже, он заменит эту ошибку.
-- После `Failed` задание само не повторяется; следующие задания очереди продолжают выдаваться.
-- Устройства заранее не регистрируются: очередь появляется с первым заданием для нового ID.
+- The board gets one job at a time. While a job is `Dispatched`, the next-job endpoint returns that same job: order is preserved and a job is not lost when the connection drops.
+- An outcome is accepted only from the device the job was dispatched to.
+- A job dispatched more than 60 seconds ago with no outcome becomes `Failed` with `DEVICE_TIMEOUT`. If the board reports an outcome later, it replaces that error.
+- A `Failed` job is not retried automatically; the following jobs in the queue keep being dispatched.
+- Devices are not registered in advance: a queue appears with the first job for a new ID.
 
-Время ожидания итога задаётся настройкой `PrintPool:DispatchTimeoutSeconds`.
+The outcome wait time is set by `PrintPool:DispatchTimeoutSeconds`.
 
-## Ответы с ошибкой
+## Error responses
 
-| Код | Когда |
+| Code | When |
 |---|---|
-| 400 | Неверные данные; текст ответа называет первое неверное поле |
-| 404 | Задания с таким ID нет |
-| 409 | Итог от чужого устройства или для задания не в том состоянии |
-| 413 | Тело запроса больше 8 КБ (проверяется раньше полей) |
+| 400 | Invalid data; the response text names the first invalid field |
+| 404 | No job with this ID |
+| 409 | Outcome from another device, or for a job in the wrong state |
+| 413 | Request body larger than 8 KB (checked before the fields) |
 
-## Коды причин в `error`
+Error texts returned by the backend are in Russian.
 
-| Код | Значение |
+## Reason codes in `error`
+
+| Code | Meaning |
 |---|---|
-| `PRINTER_UNREACHABLE` | Принтер не отвечает по сети |
-| `NO_PAPER` | Нет бумаги |
-| `COVER_OPEN` | Открыта крышка |
-| `SEND_FAILED` | Сбой при передаче чека принтеру |
-| `BAD_JOB` | Плата не смогла разобрать или сверстать задание |
-| `REBOOT_DURING_PRINT` | Плата перезагрузилась во время печати; чек заново не печатается |
-| `DEVICE_TIMEOUT` | Плата не сообщила итог за отведённое время |
+| `PRINTER_UNREACHABLE` | The printer does not respond on the network |
+| `NO_PAPER` | Out of paper |
+| `COVER_OPEN` | The cover is open |
+| `SEND_FAILED` | Failure while sending the receipt to the printer |
+| `BAD_JOB` | The board could not parse or lay out the job |
+| `REBOOT_DURING_PRINT` | The board rebooted while printing; the receipt is not printed again |
+| `DEVICE_TIMEOUT` | The board did not report an outcome in time |
 
-## Пример
+## Example
 
 ```powershell
-$body = '{"deviceId":"<ID устройства из панели>","lines":[{"type":"text","text":"Hello"},{"type":"feed","lines":3},{"type":"cut"}]}'
+$body = '{"deviceId":"<device ID from the panel>","lines":[{"type":"text","text":"Hello"},{"type":"feed","lines":3},{"type":"cut"}]}'
 Invoke-RestMethod http://localhost:5080/api/jobs -Method Post -ContentType 'application/json' -Body $body
 ```

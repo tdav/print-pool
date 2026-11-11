@@ -1,18 +1,18 @@
-# Форматы чеков
+# Receipt formats
 
-[← к оглавлению](../README.md)
+[← back to README](../README.md) · [Русская версия](ru/receipt-formats.md)
 
-Вид задания определяет поле `type` в теле `POST /api/jobs`.
+The kind of job is set by the `type` field in the `POST /api/jobs` body.
 
-| `type` | Обязательно | Запрещено | Что печатается |
+| `type` | Required | Forbidden | What is printed |
 |---|---|---|---|
-| нет или `"lines"` | `lines` | `data` | Произвольный чек: отправитель сам задаёт строки |
-| `"kitchen"` | `data` | `lines` | Чек для повара |
-| `"bill"` | `data` | `lines` | Счёт клиенту |
+| absent or `"lines"` | `lines` | `data` | A free-form receipt: the sender defines the lines |
+| `"kitchen"` | `data` | `lines` | A ticket for the cook |
+| `"bill"` | `data` | `lines` | A bill for the customer |
 
-Чеки печатаются латиницей. Знаки вне ASCII плата заменяет на `?`.
+Receipts are printed in Latin script. The board replaces non-ASCII characters with `?`. The fixed labels on the receipts are in Uzbek (Latin).
 
-## Чек для кухни
+## Kitchen ticket
 
 ```json
 {
@@ -31,9 +31,9 @@
 }
 ```
 
-На бумаге: по центру дата и время, `Hisob No`, `Stol No` с залом, `Kassir`; ниже позиции — жирным высоким шрифтом (вдвое выше обычного, обычной ширины) в виде `название.....количество` во всю ширину строки. Длинное название переносится. В конце протяжка и отрезка.
+On paper: centered date and time, `Hisob No`, `Stol No` with the hall, `Kassir`; below them the items in bold tall type (twice the normal height, normal width) as `name.....quantity` across the full line. A long name wraps. Then a feed and a cut.
 
-## Счёт клиенту
+## Customer bill
 
 ```json
 {
@@ -58,34 +58,34 @@
 }
 ```
 
-На бумаге: название заведения крупно, шапка (`Sana`, `Kassir`, `Hisob No`, `Stol No`), таблица `Nomi / Soni / Summa`, строки `Summa` и `Xizmat` (только если сумма обслуживания больше нуля), крупная строка `Jami`.
+On paper: the venue name in large type, a header (`Sana`, `Kassir`, `Hisob No`, `Stol No`), a `Nomi / Soni / Summa` table, the `Summa` and `Xizmat` lines (the latter only when the service sum is above zero), and a large `Jami` line.
 
-## Поля `data`
+## `data` fields
 
-| Поле | Правило |
+| Field | Rule |
 |---|---|
-| `title` | только счёт, необязательно, до 24 знаков |
-| `billNumber`, `table` | обязательно, 1–20 знаков |
-| `hall` | необязательно, до 40 знаков |
-| `cashier` | обязательно, 1–40 знаков |
-| `items` | обязательно, от 1 до 60 позиций |
-| `items[].name` | обязательно, 1–100 знаков |
-| `items[].quantity` | число больше 0 и не больше 9999, не более трёх знаков после запятой, в печатном виде не длиннее 5 знаков |
-| `items[].sum` | только счёт, обязательно, 0–999 999 999 |
-| `subtotal`, `total` | только счёт, обязательно, 0–999 999 999 |
-| `servicePercent` | только счёт, необязательно, 0–100 |
-| `serviceSum` | только счёт, необязательно, 0–999 999 999 |
-| `currency` | только счёт, необязательно, до 8 знаков |
+| `title` | bill only, optional, up to 24 characters |
+| `billNumber`, `table` | required, 1–20 characters |
+| `hall` | optional, up to 40 characters |
+| `cashier` | required, 1–40 characters |
+| `items` | required, 1 to 60 items |
+| `items[].name` | required, 1–100 characters |
+| `items[].quantity` | a number above 0 and at most 9999, at most three decimal places, at most 5 characters when printed |
+| `items[].sum` | bill only, required, 0–999 999 999 |
+| `subtotal`, `total` | bill only, required, 0–999 999 999 |
+| `servicePercent` | bill only, optional, 0–100 |
+| `serviceSum` | bill only, optional, 0–999 999 999 |
+| `currency` | bill only, optional, up to 8 characters |
 
-Количество может быть дробным: `0.35` печатается как `0,35`, `1.0` — как `1`.
+Quantity may be fractional: `0.35` is printed as `0,35`, `1.0` as `1`.
 
-Для чека кухни поля счёта не проверяются и на плату не передаются.
+For a kitchen ticket the bill fields are not validated and are not passed to the board.
 
-## Дата и время на чеке
+## Date and time on the receipt
 
-Отправитель дату не присылает. Плата ставит её сама: по своим часам, если они сверены с интернетом, иначе по времени бэкенда, которое приходит вместе с заданием. К времени прибавляется 5 часов (пояс UTC+5).
+The sender does not provide a date. The board sets it: from its own clock when it is synchronized with the internet, otherwise from the backend time that arrives with the job. Five hours are added (UTC+5).
 
-## Произвольный чек из строк
+## Free-form receipt
 
 ```json
 {
@@ -101,19 +101,19 @@
 }
 ```
 
-| Тип строки | Поля | Печать |
+| Line type | Fields | Printed as |
 |---|---|---|
-| `text` | `text`, `align` (`left`/`center`/`right`), `bold`, `size` (1 или 2) | Строка текста |
-| `pair` | `left`, `right`, `bold` | Левая часть у левого края, правая у правого |
-| `divider` | — | Линия из дефисов на всю ширину |
-| `qr` | `value` | QR-код по центру |
-| `feed` | `lines` | Пустые строки |
-| `cut` | — | Отрезка бумаги |
+| `text` | `text`, `align` (`left`/`center`/`right`), `bold`, `size` (1 or 2) | A line of text |
+| `pair` | `left`, `right`, `bold` | Left part at the left edge, right part at the right edge |
+| `divider` | — | A line of dashes across the full width |
+| `qr` | `value` | A centered QR code |
+| `feed` | `lines` | Blank lines |
+| `cut` | — | Paper cut |
 
-Не больше 100 строк в задании.
+At most 100 lines per job.
 
-## Ширина строки
+## Line width
 
-Число знаков в строке задаётся в панели платы: от 32 до 64, по умолчанию 48 (бумага 80 мм). От неё зависят ширина колонок счёта и длина разделителей.
+The number of characters per line is set in the board panel: 32 to 64, 48 by default (80 mm paper). It determines the bill column widths and the divider length.
 
-Полные правила вёрстки и макеты — в [спеке типов чеков](superpowers/specs/2026-11-11-receipt-types-design.md). Вид позиций кухонного чека с тех пор изменён по просьбе заказчика; запись об этом — в [журнале](superpowers/plans/2026-11-11-receipt-types-progress.md).
+Full layout rules and mock-ups are in the [receipt types spec](superpowers/specs/2026-11-11-receipt-types-design.md) (in Russian). The look of kitchen ticket items was changed later at the customer's request; see the [journal](superpowers/plans/2026-11-11-receipt-types-progress.md).
