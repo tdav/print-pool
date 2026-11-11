@@ -22,7 +22,7 @@ public sealed class JobStore(TimeProvider timeProvider, TimeSpan dispatchTimeout
             var now = timeProvider.GetUtcNow();
             this.ExpireOverdue(now);
 
-            var job = new PrintJob(Guid.NewGuid(), deviceId, (ReceiptLineDto[])lines.Clone(), JobStatus.Queued, null, now, null, null);
+            var job = new PrintJob(Guid.NewGuid(), deviceId, JobValidator.TypeLines, (ReceiptLineDto[])lines.Clone(), null, JobStatus.Queued, null, now, null, null);
             this.jobs.Add(job);
             return job;
         }

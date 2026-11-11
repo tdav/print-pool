@@ -214,6 +214,6 @@ public class JobStoreTests
         var lines = new[] { new ReceiptLineDto("text", "hi", null, null, null, null, null, null, null) };
         var job = store.Add(D1, lines);
         lines[0] = new ReceiptLineDto("cut", null, null, null, null, null, null, null, null);
-        Assert.Equal("text", store.Find(job.JobId)!.Lines[0].Type);
+        Assert.Equal("text", store.Find(job.JobId)!.Lines![0].Type);
     }
 }
