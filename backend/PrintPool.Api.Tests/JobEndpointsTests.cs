@@ -318,6 +318,16 @@ public class JobEndpointsTests(WebApplicationFactory<Program> factory) : IClassF
     }
 
     [Fact]
+    public async Task GetNext_SpecialCharactersInName_AreNotEscaped()
+    {
+        // Плате знаки названия отдаются как есть, а не кодами &: раскодирование на плате не проверено.
+        var client = ClientAt(new FakeTimeProvider(Now));
+        var text = await PostAndGetNextAsync(client, KitchenBody.Replace("SHASHLIK MOL GOSHTI", "FISH & CHIPS'S + <A>"), Guid.NewGuid());
+
+        Assert.Contains("\"name\":\"FISH & CHIPS'S + <A>\"", text);
+    }
+
+    [Fact]
     public async Task GetNext_Bill_BodyHasExactKeysAndStringQuantity()
     {
         var client = ClientAt(new FakeTimeProvider(Now));

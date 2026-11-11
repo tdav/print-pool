@@ -23,6 +23,8 @@ public static class JobEndpoints
     private static readonly JsonSerializerOptions NextJobJson = new(JsonSerializerDefaults.Web)
     {
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+        // Знаки & ' + < > отдаются плате как есть, а не кодами &: ответ читает плата, а не браузер.
+        Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
     };
 
     public static IEndpointRouteBuilder MapJobEndpoints(this IEndpointRouteBuilder app)
