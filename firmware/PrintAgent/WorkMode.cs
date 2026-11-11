@@ -201,7 +201,7 @@ namespace PrintAgent
                             {
                                 try
                                 {
-                                    error = printer.Print(EscPosBuilder.Build(lines));
+                                    error = printer.Print(EscPosBuilder.Build(lines, config.LineWidth));
                                 }
                                 catch (Exception)
                                 {

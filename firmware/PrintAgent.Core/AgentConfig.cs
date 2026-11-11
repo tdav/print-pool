@@ -10,6 +10,8 @@ namespace PrintAgent.Core
         public string PrinterIp;
         public int PrinterPort;      // по умолчанию 9100
         public int PollSeconds;      // по умолчанию 5
+        public int LineWidth;        // знаков в строке чека, по умолчанию 48, допустимо 32..64
+        public int UtcOffsetHours;   // смещение времени чека от UTC, по умолчанию 5, допустимо -12..14
 
         public static AgentConfig CreateDefault(string deviceId)
         {
@@ -21,6 +23,8 @@ namespace PrintAgent.Core
             c.PrinterIp = "";
             c.PrinterPort = 9100;
             c.PollSeconds = 5;
+            c.LineWidth = 48;
+            c.UtcOffsetHours = 5;
             return c;
         }
 
@@ -70,6 +74,16 @@ namespace PrintAgent.Core
             if (this.PollSeconds < 1 || this.PollSeconds > 3600)
             {
                 return "PollSeconds: допустимо 1-3600";
+            }
+
+            if (this.LineWidth < 32 || this.LineWidth > 64)
+            {
+                return "LineWidth: допустимо 32-64";
+            }
+
+            if (this.UtcOffsetHours < -12 || this.UtcOffsetHours > 14)
+            {
+                return "UtcOffsetHours: допустимо -12..14";
             }
 
             string url = this.BackendUrl;

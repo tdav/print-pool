@@ -285,7 +285,7 @@ namespace PrintAgent
                         lines[4] = new ReceiptLine { Type = "qr", Value = config.DeviceId };
                         lines[5] = new ReceiptLine { Type = "feed", Lines = 3 };
                         lines[6] = new ReceiptLine { Type = "cut" };
-                        result = printer.Print(EscPosBuilder.Build(lines));
+                        result = printer.Print(EscPosBuilder.Build(lines, config.LineWidth));
                     }
 
                     if (result == null)

@@ -5,9 +5,8 @@ namespace PrintAgent.Core
     // Сборка чека в байты ESC/POS. Только ASCII; перенос длинных text делает принтер
     public static class EscPosBuilder
     {
-        public const int LineWidth = 48;
-
-        public static byte[] Build(ReceiptLine[] lines)
+        // width — число знаков в строке принтера (32..64)
+        public static byte[] Build(ReceiptLine[] lines, int width)
         {
             ByteBuffer buf = new ByteBuffer();
             buf.Append(new byte[] { 0x1B, 0x40 }); // сброс принтера
@@ -32,7 +31,7 @@ namespace PrintAgent.Core
                         }
                         else
                         {
-                            buf.Append(FormatPair(Sanitize(line.Left), Sanitize(line.Right), dbl ? LineWidth / 2 : LineWidth));
+                            buf.Append(FormatPair(Sanitize(line.Left), Sanitize(line.Right), dbl ? width / 2 : width));
                         }
                         buf.Append(0x0A);
                         // возврат к обычному состоянию
@@ -42,7 +41,7 @@ namespace PrintAgent.Core
                         break;
 
                     case "divider":
-                        buf.Append(new string('-', LineWidth));
+                        buf.Append(new string('-', width));
                         buf.Append(0x0A);
                         break;
 

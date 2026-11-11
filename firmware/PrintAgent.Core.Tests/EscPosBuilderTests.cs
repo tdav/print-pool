@@ -31,7 +31,7 @@ namespace PrintAgent.Core.Tests
         [Fact]
         public void Build_StartsWithReset()
         {
-            byte[] r = EscPosBuilder.Build(new ReceiptLine[0]);
+            byte[] r = EscPosBuilder.Build(new ReceiptLine[0], 48);
             Assert.Equal(new byte[] { 0x1B, 0x40 }, r);
         }
 
@@ -43,7 +43,7 @@ namespace PrintAgent.Core.Tests
             l.Align = "center";
             l.Bold = true;
             l.Size = 2;
-            byte[] r = EscPosBuilder.Build(new ReceiptLine[] { l });
+            byte[] r = EscPosBuilder.Build(new ReceiptLine[] { l }, 48);
             byte[] expected = new byte[]
             {
                 0x1B, 0x40,
@@ -60,14 +60,14 @@ namespace PrintAgent.Core.Tests
             ReceiptLine l = L("text");
             l.Text = "A";
             l.Align = "right";
-            byte[] r = EscPosBuilder.Build(new ReceiptLine[] { l });
+            byte[] r = EscPosBuilder.Build(new ReceiptLine[] { l }, 48);
             Assert.Equal(new byte[] { 0x1B, 0x40, 0x1B, 0x61, 0x02, 0x41, 0x0A, 0x1B, 0x61, 0x00 }, r);
         }
 
         [Fact]
         public void Divider_Is48Dashes()
         {
-            byte[] r = EscPosBuilder.Build(new ReceiptLine[] { L("divider") });
+            byte[] r = EscPosBuilder.Build(new ReceiptLine[] { L("divider") }, 48);
             Assert.Equal(2 + 48 + 1, r.Length);
             for (int i = 2; i < 50; i++) { Assert.Equal(0x2D, r[i]); }
             Assert.Equal(0x0A, r[50]);
@@ -104,10 +104,42 @@ namespace PrintAgent.Core.Tests
             l.Left = "A";
             l.Right = "1";
             l.Size = 2;
-            byte[] r = EscPosBuilder.Build(new ReceiptLine[] { l });
+            byte[] r = EscPosBuilder.Build(new ReceiptLine[] { l }, 48);
             // сброс(2) + размер(3) + 24 символа + LF + возврат размера(3)
             Assert.Equal(2 + 3 + 24 + 1 + 3, r.Length);
             Assert.Equal(0x0A, r[2 + 3 + 24]);
+        }
+
+        [Fact]
+        public void Divider_Width32_Is32Dashes()
+        {
+            byte[] r = EscPosBuilder.Build(new ReceiptLine[] { L("divider") }, 32);
+            Assert.Equal(2 + 32 + 1, r.Length);
+            for (int i = 2; i < 34; i++) { Assert.Equal(0x2D, r[i]); }
+            Assert.Equal(0x0A, r[34]);
+        }
+
+        [Fact]
+        public void Pair_Width32_PadsTo32()
+        {
+            ReceiptLine l = L("pair");
+            l.Left = "A";
+            l.Right = "1";
+            byte[] r = EscPosBuilder.Build(new ReceiptLine[] { l }, 32);
+            Assert.Equal(2 + 32 + 1, r.Length);
+            Assert.Equal(0x0A, r[2 + 32]);
+        }
+
+        [Fact]
+        public void Pair_Width32_Size2_Uses16()
+        {
+            ReceiptLine l = L("pair");
+            l.Left = "A";
+            l.Right = "1";
+            l.Size = 2;
+            byte[] r = EscPosBuilder.Build(new ReceiptLine[] { l }, 32);
+            Assert.Equal(2 + 3 + 16 + 1 + 3, r.Length);
+            Assert.Equal(0x0A, r[2 + 3 + 16]);
         }
 
         [Fact]
@@ -123,7 +155,7 @@ namespace PrintAgent.Core.Tests
         {
             ReceiptLine l = L("text");
             l.Text = "Чай";
-            byte[] r = EscPosBuilder.Build(new ReceiptLine[] { l });
+            byte[] r = EscPosBuilder.Build(new ReceiptLine[] { l }, 48);
             Assert.Equal(new byte[] { 0x1B, 0x40, 0x3F, 0x3F, 0x3F, 0x0A }, r);
         }
 
@@ -133,7 +165,7 @@ namespace PrintAgent.Core.Tests
             ReceiptLine l = L("qr");
             l.Value = "https://example.com";
             Assert.Equal(19, l.Value.Length);
-            byte[] r = EscPosBuilder.Build(new ReceiptLine[] { l });
+            byte[] r = EscPosBuilder.Build(new ReceiptLine[] { l }, 48);
             int i = IndexOf(r, new byte[] { 0x1D, 0x28, 0x6B, 22, 0, 0x31, 0x50, 0x30 });
             Assert.True(i >= 0);
             Assert.Equal((byte)'h', r[i + 8]);
@@ -151,28 +183,28 @@ namespace PrintAgent.Core.Tests
         {
             ReceiptLine l = L("feed");
             l.Lines = 3;
-            byte[] r = EscPosBuilder.Build(new ReceiptLine[] { l });
+            byte[] r = EscPosBuilder.Build(new ReceiptLine[] { l }, 48);
             Assert.Equal(new byte[] { 0x1B, 0x40, 0x1B, 0x64, 0x03 }, r);
         }
 
         [Fact]
         public void Feed_ZeroLines_TreatedAsOne()
         {
-            byte[] r = EscPosBuilder.Build(new ReceiptLine[] { L("feed") });
+            byte[] r = EscPosBuilder.Build(new ReceiptLine[] { L("feed") }, 48);
             Assert.Equal(new byte[] { 0x1B, 0x40, 0x1B, 0x64, 0x01 }, r);
         }
 
         [Fact]
         public void Cut_EmitsPartialCut()
         {
-            byte[] r = EscPosBuilder.Build(new ReceiptLine[] { L("cut") });
+            byte[] r = EscPosBuilder.Build(new ReceiptLine[] { L("cut") }, 48);
             Assert.Equal(new byte[] { 0x1B, 0x40, 0x1D, 0x56, 0x42, 0x00 }, r);
         }
 
         [Fact]
         public void Build_UnknownType_Throws()
         {
-            Assert.Throws<ArgumentException>(() => EscPosBuilder.Build(new ReceiptLine[] { L("bogus") }));
+            Assert.Throws<ArgumentException>(() => EscPosBuilder.Build(new ReceiptLine[] { L("bogus") }, 48));
         }
 
         [Fact]
@@ -182,7 +214,7 @@ namespace PrintAgent.Core.Tests
             ReceiptLine pair = L("pair"); pair.Left = "TOTAL"; pair.Right = "45 000";
             ReceiptLine qr = L("qr"); qr.Value = "order-123";
             ReceiptLine feed = L("feed"); feed.Lines = 3;
-            byte[] r = EscPosBuilder.Build(new ReceiptLine[] { head, L("divider"), pair, qr, feed, L("cut") });
+            byte[] r = EscPosBuilder.Build(new ReceiptLine[] { head, L("divider"), pair, qr, feed, L("cut") }, 48);
             int n = r.Length;
             Assert.Equal(new byte[] { 0x1D, 0x56, 0x42, 0x00 }, new byte[] { r[n - 4], r[n - 3], r[n - 2], r[n - 1] });
         }

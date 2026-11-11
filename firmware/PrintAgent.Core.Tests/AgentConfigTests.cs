@@ -26,6 +26,54 @@ namespace PrintAgent.Core.Tests
         }
 
         [Fact]
+        public void CreateDefault_LineWidth48AndUtcOffset5()
+        {
+            AgentConfig c = AgentConfig.CreateDefault("id-1");
+            Assert.Equal(48, c.LineWidth);
+            Assert.Equal(5, c.UtcOffsetHours);
+        }
+
+        [Theory]
+        [InlineData(31)]
+        [InlineData(65)]
+        public void Validate_BadLineWidth_ReturnsError(int width)
+        {
+            AgentConfig c = Valid();
+            c.LineWidth = width;
+            Assert.Contains("LineWidth", c.Validate());
+        }
+
+        [Theory]
+        [InlineData(32)]
+        [InlineData(64)]
+        public void Validate_BoundaryLineWidth_Ok(int width)
+        {
+            AgentConfig c = Valid();
+            c.LineWidth = width;
+            Assert.Null(c.Validate());
+        }
+
+        [Theory]
+        [InlineData(-13)]
+        [InlineData(15)]
+        public void Validate_BadUtcOffset_ReturnsError(int hours)
+        {
+            AgentConfig c = Valid();
+            c.UtcOffsetHours = hours;
+            Assert.Contains("UtcOffsetHours", c.Validate());
+        }
+
+        [Theory]
+        [InlineData(-12)]
+        [InlineData(14)]
+        public void Validate_BoundaryUtcOffset_Ok(int hours)
+        {
+            AgentConfig c = Valid();
+            c.UtcOffsetHours = hours;
+            Assert.Null(c.Validate());
+        }
+
+        [Fact]
         public void Validate_Valid_ReturnsNull()
         {
             Assert.Null(Valid().Validate());
