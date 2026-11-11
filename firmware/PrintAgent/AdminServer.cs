@@ -61,6 +61,15 @@ namespace PrintAgent
                     }
 
                     string lastError = ConfigStore.ReadText(ConfigStore.LastError);
+                    // Время платы показывается, только если часы сверены с интернетом.
+                    string time = "";
+                    DateTime now = DateTime.UtcNow;
+                    if (now.Year >= 2024)
+                    {
+                        now = now.AddHours(config.UtcOffsetHours);
+                        time = ReceiptFormatter.FormatDateTime(now.Year, now.Month, now.Day, now.Hour, now.Minute);
+                    }
+
                     response.ContentType = "application/json; charset=utf-8";
                     WebServer.OutputAsStream(response,
                         "{\"mode\":" + Quote(mode)
@@ -71,6 +80,7 @@ namespace PrintAgent
                         + ",\"printer\":" + Quote(printer)
                         + ",\"lastJob\":" + Quote(LastJob)
                         + ",\"lastError\":" + Quote(lastError)
+                        + ",\"time\":" + Quote(time)
                         + ",\"uptime\":" + (Program.UptimeMs / 1000)
                         + ",\"boots\":" + Program.Boots
                         + ",\"freeMem\":" + Program.FreeMem + "}");
@@ -96,7 +106,9 @@ namespace PrintAgent
                         + ",\"backendUrl\":" + Quote(config.BackendUrl)
                         + ",\"printerIp\":" + Quote(config.PrinterIp)
                         + ",\"printerPort\":" + config.PrinterPort
-                        + ",\"pollSeconds\":" + config.PollSeconds + "}");
+                        + ",\"pollSeconds\":" + config.PollSeconds
+                        + ",\"lineWidth\":" + config.LineWidth
+                        + ",\"utcOffsetHours\":" + config.UtcOffsetHours + "}");
                     return;
                 }
 
@@ -151,6 +163,8 @@ namespace PrintAgent
                     candidate.PrinterIp = file.printerIp;
                     candidate.PrinterPort = file.printerPort;
                     candidate.PollSeconds = file.pollSeconds;
+                    candidate.LineWidth = file.lineWidth;
+                    candidate.UtcOffsetHours = file.utcOffsetHours;
 
                     string error = candidate.Validate();
                     if (error != null)
@@ -277,14 +291,22 @@ namespace PrintAgent
                     }
                     else
                     {
-                        ReceiptLine[] lines = new ReceiptLine[7];
+                        // Линейка во всю ширину строки: по ней видно, верно ли задана ширина.
+                        string ruler = "";
+                        while (ruler.Length < config.LineWidth)
+                        {
+                            ruler += "1234567890";
+                        }
+
+                        ReceiptLine[] lines = new ReceiptLine[8];
                         lines[0] = new ReceiptLine { Type = "text", Text = "PrintAgent", Align = "center", Bold = true, Size = 2 };
                         lines[1] = new ReceiptLine { Type = "text", Text = "Test print", Align = "center" };
                         lines[2] = new ReceiptLine { Type = "divider" };
                         lines[3] = new ReceiptLine { Type = "pair", Left = "Agent IP", Right = address };
-                        lines[4] = new ReceiptLine { Type = "qr", Value = config.DeviceId };
-                        lines[5] = new ReceiptLine { Type = "feed", Lines = 3 };
-                        lines[6] = new ReceiptLine { Type = "cut" };
+                        lines[4] = new ReceiptLine { Type = "text", Text = ruler.Substring(0, config.LineWidth) };
+                        lines[5] = new ReceiptLine { Type = "qr", Value = config.DeviceId };
+                        lines[6] = new ReceiptLine { Type = "feed", Lines = 3 };
+                        lines[7] = new ReceiptLine { Type = "cut" };
                         result = printer.Print(EscPosBuilder.Build(lines, config.LineWidth));
                     }
 

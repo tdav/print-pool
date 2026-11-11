@@ -21,6 +21,10 @@ namespace PrintAgent
         // Кнопка BOOT на плате: нажата — низкий уровень.
         private const int BootPin = 0;
         private const int WifiTimeoutMs = 60000;
+        // Сколько ждать сверки часов после подключения к Wi-Fi.
+        private const int TimeWaitMs = 10000;
+        // Год меньше этого означает, что часы платы не сверены.
+        private const int MinValidYear = 2024;
         // Отметка «начато» и итог лежат в разных файлах: запись итога не стирает отметку,
         // и обрыв питания посреди записи не оставляет плату без сведений о напечатанном чеке.
         private const string JournalFile = "journal";
@@ -72,6 +76,13 @@ namespace PrintAgent
                 ConfigStore.WriteText(ConfigStore.ModeFlag, "wifi");
                 Power.RebootDevice();
                 Thread.Sleep(Timeout.Infinite);
+            }
+
+            // Часы платы сверяются с интернетом сами после подключения. Ждём их недолго:
+            // в сети без выхода в интернет сверка не придёт никогда, и чеки возьмут время бэкенда.
+            for (int i = 0; i < TimeWaitMs / 100 && DateTime.UtcNow.Year < MinValidYear; i++)
+            {
+                Thread.Sleep(100);
             }
 
             string ip = "";
@@ -179,8 +190,11 @@ namespace PrintAgent
                     else
                     {
                         string jobId;
+                        string type;
+                        int serverTime;
                         ReceiptLine[] lines;
-                        int status = backend.TryGetNext(out jobId, out lines);
+                        ReceiptData data;
+                        int status = backend.TryGetNext(out jobId, out type, out serverTime, out lines, out data);
                         AdminServer.Backend = status == 0 ? "unreachable"
                             : (status == 404 ? "bad-address" : (status == 200 || status == 204 ? "ok" : "error"));
 
@@ -193,20 +207,39 @@ namespace PrintAgent
                             ConfigStore.WriteText(JournalFile, JobJournal.Format(started));
 
                             string error;
-                            if (lines == null)
+                            try
+                            {
+                                // Строки для печати; null — задание напечатать нельзя.
+                                ReceiptLine[] receipt = null;
+                                if (type == "lines")
+                                {
+                                    receipt = lines;
+                                }
+                                else if ((type == "kitchen" || type == "bill") && data != null)
+                                {
+                                    // Время чека: часы платы, если сверены, иначе время бэкенда из задания.
+                                    DateTime now = DateTime.UtcNow;
+                                    if (now.Year < MinValidYear && serverTime > 0)
+                                    {
+                                        now = new DateTime(1970, 1, 1).AddSeconds(serverTime);
+                                    }
+
+                                    // Без обоих источников времени чек не печатается: чеков без даты не бывает.
+                                    if (now.Year >= MinValidYear)
+                                    {
+                                        now = now.AddHours(config.UtcOffsetHours);
+                                        string stamp = ReceiptFormatter.FormatDateTime(now.Year, now.Month, now.Day, now.Hour, now.Minute);
+                                        receipt = type == "kitchen"
+                                            ? ReceiptFormatter.Kitchen(data, stamp, config.LineWidth)
+                                            : ReceiptFormatter.Bill(data, stamp, config.LineWidth);
+                                    }
+                                }
+
+                                error = receipt == null ? "BAD_JOB" : printer.Print(EscPosBuilder.Build(receipt, config.LineWidth));
+                            }
+                            catch (Exception)
                             {
                                 error = "BAD_JOB";
-                            }
-                            else
-                            {
-                                try
-                                {
-                                    error = printer.Print(EscPosBuilder.Build(lines, config.LineWidth));
-                                }
-                                catch (Exception)
-                                {
-                                    error = "BAD_JOB";
-                                }
                             }
 
                             pending = new JournalEntry();

@@ -57,6 +57,7 @@ button:disabled{opacity:.5}
   <div class="row"><span>Бэкенд</span><span class="pill" id="s-backend">—</span></div>
   <div class="row"><span>Принтер</span><span class="pill" id="s-printer">—</span></div>
   <div class="row"><span>Последнее задание</span><span id="s-job">—</span></div>
+  <div class="row"><span>Время</span><span id="s-time">—</span></div>
   <div class="msg bad" id="s-error"></div>
 </section>
 
@@ -75,6 +76,10 @@ button:disabled{opacity:.5}
   <div class="two">
     <div><label for="printerIp">IP-адрес</label><input id="printerIp" inputmode="decimal" autocomplete="off" placeholder="192.168.1.100"></div>
     <div><label for="printerPort">Порт</label><input id="printerPort" inputmode="numeric" autocomplete="off" placeholder="9100"></div>
+  </div>
+  <div class="two">
+    <div><label for="lineWidth">Ширина строки, знаков</label><input id="lineWidth" inputmode="numeric" autocomplete="off" placeholder="48"></div>
+    <div><label for="utcOffsetHours">Пояс, UTC+</label><input id="utcOffsetHours" inputmode="text" autocomplete="off" placeholder="5"></div>
   </div>
   <div class="btns">
     <button type="button" id="b-check">Проверить связь</button>
@@ -134,21 +139,25 @@ function loadState(){return call('GET','/api/state').then(function(r){var s=JSON
   var work=s.mode==='work';$('mode').textContent=work?'Рабочий режим':'Режим настройки';$('mode').className='pill '+(work?'ok':'wn');
   $('addr').textContent=s.ip;$('s-wifi').textContent=s.wifi||'—';$('s-wifi').className='pill '+(work?'ok':'wn');
   pill($('s-backend'),s.backend);pill($('s-printer'),s.printer);$('s-job').textContent=s.lastJob||'—';
+  $('s-time').textContent=s.time||'не сверено, берётся с бэкенда';
   $('device-id').textContent=s.deviceId;$('s-error').textContent=s.lastError?'Последний сбой: '+s.lastError:'';
   $('b-check').disabled=!work;$('b-test').disabled=!work;$('b-scan').disabled=!work||scanning;$('n-printer').hidden=work})}
 function loadConfig(){return call('GET','/api/config').then(function(r){var c=JSON.parse(r.text);
   $('wifiSsid').value=c.wifiSsid;$('backendUrl').value=c.backendUrl;$('printerIp').value=c.printerIp;
-  $('printerPort').value=c.printerPort;$('pollSeconds').value=c.pollSeconds;$('n-pass').hidden=!c.hasPassword})}
+  $('printerPort').value=c.printerPort;$('pollSeconds').value=c.pollSeconds;
+  $('lineWidth').value=c.lineWidth;$('utcOffsetHours').value=c.utcOffsetHours;$('n-pass').hidden=!c.hasPassword})}
 function check(){var ip=$('printerIp').value.trim(),p=ip.split('.'),okIp=p.length===4&&p.every(function(x){return/^\d{1,3}$/.test(x)&&+x<=255});
   if(!okIp)return'IP-адрес принтера: четыре числа от 0 до 255 через точку';
   var port=$('printerPort').value.trim();if(!/^\d+$/.test(port)||+port<1||+port>65535)return'Порт принтера: число от 1 до 65535';
   var poll=$('pollSeconds').value.trim();if(!/^\d+$/.test(poll)||+poll<1||+poll>3600)return'Период опроса: число от 1 до 3600';
+  var w=$('lineWidth').value.trim();if(!/^\d+$/.test(w)||+w<32||+w>64)return'Ширина строки: число от 32 до 64';
+  var tz=$('utcOffsetHours').value.trim();if(!/^-?\d+$/.test(tz)||+tz<-12||+tz>14)return'Часовой пояс: целое число от -12 до 14';
   if(!$('wifiSsid').value)return'Введите имя сети Wi-Fi';
   var u=$('backendUrl').value.trim();if(u.indexOf('http://')!==0||u.length<8||u.slice(-1)==='/')return'Адрес бэкенда: http://адрес:порт, без / в конце';
   return''}
 $('b-save').onclick=function(){var e=check();if(e){msg($('m-save'),e);return}
   $('b-save').disabled=true;msg($('m-save'),'Сохраняю…',true);
-  call('POST','/api/config',{wifiSsid:$('wifiSsid').value,wifiPassword:$('wifiPassword').value,backendUrl:$('backendUrl').value.trim(),printerIp:$('printerIp').value.trim(),printerPort:+$('printerPort').value,pollSeconds:+$('pollSeconds').value})
+  call('POST','/api/config',{wifiSsid:$('wifiSsid').value,wifiPassword:$('wifiPassword').value,backendUrl:$('backendUrl').value.trim(),printerIp:$('printerIp').value.trim(),printerPort:+$('printerPort').value,pollSeconds:+$('pollSeconds').value,lineWidth:+$('lineWidth').value,utcOffsetHours:+$('utcOffsetHours').value})
   .then(function(r){msg($('m-save'),r.text,r.ok);$('b-save').disabled=r.ok}).catch(function(){msg($('m-save'),'Плата не ответила');$('b-save').disabled=false})};
 function printer(url,btn){btn.disabled=true;msg($('m-printer'),'Жду ответа…',true);
   call('POST',url).then(function(r){msg($('m-printer'),r.ok?r.text:(names[r.text]||[r.text])[0],r.ok);btn.disabled=false;loadState()}).catch(function(){msg($('m-printer'),'Плата не ответила');btn.disabled=false})}
