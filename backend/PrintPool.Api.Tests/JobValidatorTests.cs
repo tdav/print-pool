@@ -242,6 +242,7 @@ public class JobValidatorTests
     [InlineData("1")]
     [InlineData("99.99")]
     [InlineData("9999")]
+    [InlineData("0.3500")]
     public void ValidateData_QuantityValid_ReturnsNull(string quantity)
     {
         Assert.Null(JobValidator.ValidateData("kitchen", Data(items: [Item(quantity: Dec(quantity))])));
@@ -254,10 +255,24 @@ public class JobValidatorTests
     [InlineData("10000")]
     [InlineData("0.1234")]
     [InlineData("12.125")]
+    [InlineData("9999.5")]
+    [InlineData("0.0004")]
+    [InlineData("999.99")]
     public void ValidateData_QuantityInvalid_ReturnsError(string quantity)
     {
         Assert.Contains("quantity", JobValidator.ValidateData("kitchen", Data(items: [Item(quantity: Dec(quantity))])));
         Assert.Contains("quantity", JobValidator.ValidateData("bill", Data(items: [Item(quantity: Dec(quantity))])));
+    }
+
+    [Theory]
+    [InlineData("kitchen")]
+    [InlineData("bill")]
+    public void ValidateData_WhitespaceOnlyRequiredStrings_ReturnError(string type)
+    {
+        Assert.Contains("billNumber", JobValidator.ValidateData(type, Data(billNumber: "   ")));
+        Assert.Contains("table", JobValidator.ValidateData(type, Data(table: "  ")));
+        Assert.Contains("cashier", JobValidator.ValidateData(type, Data(cashier: " ")));
+        Assert.Contains("name", JobValidator.ValidateData(type, Data(items: [Item(name: "   ")])));
     }
 
     [Fact]
@@ -273,21 +288,21 @@ public class JobValidatorTests
     [Fact]
     public void ValidateData_Subtotal_RequiredAndBoundedForBill()
     {
-        Assert.Contains("subtotal", JobValidator.ValidateData("bill", Data(subtotal: null)));
-        Assert.Contains("subtotal", JobValidator.ValidateData("bill", Data(subtotal: -1)));
+        Assert.StartsWith("subtotal ", JobValidator.ValidateData("bill", Data(subtotal: null)));
+        Assert.StartsWith("subtotal ", JobValidator.ValidateData("bill", Data(subtotal: -1)));
         Assert.Null(JobValidator.ValidateData("bill", Data(subtotal: 0)));
         Assert.Null(JobValidator.ValidateData("bill", Data(subtotal: 999_999_999)));
-        Assert.Contains("subtotal", JobValidator.ValidateData("bill", Data(subtotal: 1_000_000_000)));
+        Assert.StartsWith("subtotal ", JobValidator.ValidateData("bill", Data(subtotal: 1_000_000_000)));
     }
 
     [Fact]
     public void ValidateData_Total_RequiredAndBoundedForBill()
     {
-        Assert.Contains("total", JobValidator.ValidateData("bill", Data(total: null)));
-        Assert.Contains("total", JobValidator.ValidateData("bill", Data(total: -1)));
+        Assert.StartsWith("total ", JobValidator.ValidateData("bill", Data(total: null)));
+        Assert.StartsWith("total ", JobValidator.ValidateData("bill", Data(total: -1)));
         Assert.Null(JobValidator.ValidateData("bill", Data(total: 0)));
         Assert.Null(JobValidator.ValidateData("bill", Data(total: 999_999_999)));
-        Assert.Contains("total", JobValidator.ValidateData("bill", Data(total: 1_000_000_000)));
+        Assert.StartsWith("total ", JobValidator.ValidateData("bill", Data(total: 1_000_000_000)));
     }
 
     [Fact]
@@ -382,6 +397,7 @@ public class JobValidatorTests
     [InlineData("1", "1")]
     [InlineData("1.0", "1")]
     [InlineData("0.5", "0,5")]
+    [InlineData("0.3500", "0,35")]
     [InlineData("0.350", "0,35")]
     [InlineData("9999", "9999")]
     [InlineData("99.99", "99,99")]

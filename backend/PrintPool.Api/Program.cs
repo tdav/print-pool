@@ -18,7 +18,8 @@ if (timeoutSeconds < 1)
         $"PrintPool:DispatchTimeoutSeconds должно быть не меньше 1, получено {timeoutSeconds}.");
 }
 
-builder.Services.AddSingleton(new JobStore(TimeProvider.System, TimeSpan.FromSeconds(timeoutSeconds)));
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddSingleton(sp => new JobStore(sp.GetRequiredService<TimeProvider>(), TimeSpan.FromSeconds(timeoutSeconds)));
 builder.Services.ConfigureHttpJsonOptions(o =>
 {
     o.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
@@ -26,7 +27,7 @@ builder.Services.ConfigureHttpJsonOptions(o =>
     o.SerializerOptions.Encoder = JavaScriptEncoder.Create(UnicodeRanges.BasicLatin, UnicodeRanges.Cyrillic);
 });
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(o => o.OperationFilter<CreateJobExamplesFilter>());
 
 var app = builder.Build();
 

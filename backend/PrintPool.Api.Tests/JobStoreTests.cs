@@ -12,7 +12,7 @@ public class JobStoreTests
     public void Add_ReturnsQueuedJobWithNewId()
     {
         var store = new JobStore(new FakeTimeProvider(), TimeSpan.FromSeconds(60));
-        var job = store.Add(D1, Lines);
+        var job = store.Add(D1, JobValidator.TypeLines, Lines, null);
         Assert.Equal(JobStatus.Queued, job.Status);
         Assert.NotEqual(Guid.Empty, job.JobId);
     }
@@ -21,8 +21,8 @@ public class JobStoreTests
     public void TakeNext_ReturnsJobsInAddOrder()
     {
         var store = new JobStore(new FakeTimeProvider(), TimeSpan.FromSeconds(60));
-        var a = store.Add(D1, Lines);
-        var b = store.Add(D1, Lines);
+        var a = store.Add(D1, JobValidator.TypeLines, Lines, null);
+        var b = store.Add(D1, JobValidator.TypeLines, Lines, null);
         Assert.Equal(a.JobId, store.TakeNext(D1)!.JobId);
         store.Complete(a.JobId, D1, true, null);
         Assert.Equal(b.JobId, store.TakeNext(D1)!.JobId);
@@ -32,8 +32,8 @@ public class JobStoreTests
     public void TakeNext_RepeatsDispatchedJobUntilCompleted()
     {
         var store = new JobStore(new FakeTimeProvider(), TimeSpan.FromSeconds(60));
-        var a = store.Add(D1, Lines);
-        var b = store.Add(D1, Lines);
+        var a = store.Add(D1, JobValidator.TypeLines, Lines, null);
+        var b = store.Add(D1, JobValidator.TypeLines, Lines, null);
         Assert.Equal(a.JobId, store.TakeNext(D1)!.JobId);
         Assert.Equal(a.JobId, store.TakeNext(D1)!.JobId);
         Assert.Equal(JobStatus.Queued, store.Find(b.JobId)!.Status);
@@ -43,7 +43,7 @@ public class JobStoreTests
     public void TakeNext_OtherDevice_ReturnsNull()
     {
         var store = new JobStore(new FakeTimeProvider(), TimeSpan.FromSeconds(60));
-        store.Add(D1, Lines);
+        store.Add(D1, JobValidator.TypeLines, Lines, null);
         Assert.Null(store.TakeNext(D2));
     }
 
@@ -51,7 +51,7 @@ public class JobStoreTests
     public void Complete_Success_SetsPrinted()
     {
         var store = new JobStore(new FakeTimeProvider(), TimeSpan.FromSeconds(60));
-        var a = store.Add(D1, Lines);
+        var a = store.Add(D1, JobValidator.TypeLines, Lines, null);
         store.TakeNext(D1);
         Assert.Equal(ResultOutcome.Accepted, store.Complete(a.JobId, D1, true, null));
         Assert.Equal(JobStatus.Printed, store.Find(a.JobId)!.Status);
@@ -61,8 +61,8 @@ public class JobStoreTests
     public void Complete_Failure_KeepsErrorAndNextJobStillServed()
     {
         var store = new JobStore(new FakeTimeProvider(), TimeSpan.FromSeconds(60));
-        var a = store.Add(D1, Lines);
-        var b = store.Add(D1, Lines);
+        var a = store.Add(D1, JobValidator.TypeLines, Lines, null);
+        var b = store.Add(D1, JobValidator.TypeLines, Lines, null);
         store.TakeNext(D1);
         Assert.Equal(ResultOutcome.Accepted, store.Complete(a.JobId, D1, false, "NO_PAPER"));
         var found = store.Find(a.JobId)!;
@@ -75,7 +75,7 @@ public class JobStoreTests
     public void Complete_WrongDevice_Rejected()
     {
         var store = new JobStore(new FakeTimeProvider(), TimeSpan.FromSeconds(60));
-        var a = store.Add(D1, Lines);
+        var a = store.Add(D1, JobValidator.TypeLines, Lines, null);
         store.TakeNext(D1);
         Assert.Equal(ResultOutcome.WrongDevice, store.Complete(a.JobId, D2, true, null));
         Assert.Equal(JobStatus.Dispatched, store.Find(a.JobId)!.Status);
@@ -85,7 +85,7 @@ public class JobStoreTests
     public void Complete_QueuedJob_Rejected()
     {
         var store = new JobStore(new FakeTimeProvider(), TimeSpan.FromSeconds(60));
-        var a = store.Add(D1, Lines);
+        var a = store.Add(D1, JobValidator.TypeLines, Lines, null);
         Assert.Equal(ResultOutcome.WrongState, store.Complete(a.JobId, D1, true, null));
         Assert.Equal(JobStatus.Queued, store.Find(a.JobId)!.Status);
     }
@@ -102,7 +102,7 @@ public class JobStoreTests
     {
         var time = new FakeTimeProvider();
         var store = new JobStore(time, TimeSpan.FromSeconds(60));
-        var a = store.Add(D1, Lines);
+        var a = store.Add(D1, JobValidator.TypeLines, Lines, null);
         store.TakeNext(D1);
         time.Advance(TimeSpan.FromSeconds(61));
         var found = store.Find(a.JobId)!;
@@ -115,7 +115,7 @@ public class JobStoreTests
     {
         var time = new FakeTimeProvider();
         var store = new JobStore(time, TimeSpan.FromSeconds(60));
-        var a = store.Add(D1, Lines);
+        var a = store.Add(D1, JobValidator.TypeLines, Lines, null);
         store.TakeNext(D1);
         time.Advance(TimeSpan.FromSeconds(61));
         Assert.Equal(ResultOutcome.Accepted, store.Complete(a.JobId, D1, true, null));
@@ -126,7 +126,7 @@ public class JobStoreTests
     public void Complete_RepeatedSameResult_Accepted()
     {
         var store = new JobStore(new FakeTimeProvider(), TimeSpan.FromSeconds(60));
-        var a = store.Add(D1, Lines);
+        var a = store.Add(D1, JobValidator.TypeLines, Lines, null);
         store.TakeNext(D1);
         store.Complete(a.JobId, D1, true, null);
         var before = store.Find(a.JobId);
@@ -138,7 +138,7 @@ public class JobStoreTests
     public void Complete_AfterPrinted_DifferentResult_Rejected()
     {
         var store = new JobStore(new FakeTimeProvider(), TimeSpan.FromSeconds(60));
-        var a = store.Add(D1, Lines);
+        var a = store.Add(D1, JobValidator.TypeLines, Lines, null);
         store.TakeNext(D1);
         store.Complete(a.JobId, D1, true, null);
         Assert.Equal(ResultOutcome.WrongState, store.Complete(a.JobId, D1, false, "NO_PAPER"));
@@ -149,7 +149,7 @@ public class JobStoreTests
     public void Complete_AfterExplicitFailure_DifferentResult_Rejected()
     {
         var store = new JobStore(new FakeTimeProvider(), TimeSpan.FromSeconds(60));
-        var a = store.Add(D1, Lines);
+        var a = store.Add(D1, JobValidator.TypeLines, Lines, null);
         store.TakeNext(D1);
         store.Complete(a.JobId, D1, false, "NO_PAPER");
         Assert.Equal(ResultOutcome.WrongState, store.Complete(a.JobId, D1, true, null));
@@ -160,7 +160,7 @@ public class JobStoreTests
     public void Complete_RepeatedFailure_AcceptedWithoutChange()
     {
         var store = new JobStore(new FakeTimeProvider(), TimeSpan.FromSeconds(60));
-        var a = store.Add(D1, Lines);
+        var a = store.Add(D1, JobValidator.TypeLines, Lines, null);
         store.TakeNext(D1);
         store.Complete(a.JobId, D1, false, "NO_PAPER");
         var before = store.Find(a.JobId);
@@ -173,8 +173,8 @@ public class JobStoreTests
     {
         var time = new FakeTimeProvider();
         var store = new JobStore(time, TimeSpan.FromSeconds(60));
-        var a = store.Add(D1, Lines);
-        var b = store.Add(D1, Lines);
+        var a = store.Add(D1, JobValidator.TypeLines, Lines, null);
+        var b = store.Add(D1, JobValidator.TypeLines, Lines, null);
         store.TakeNext(D1);
         time.Advance(TimeSpan.FromSeconds(61));
         Assert.Equal(b.JobId, store.TakeNext(D1)!.JobId);
@@ -186,7 +186,7 @@ public class JobStoreTests
     {
         var time = new FakeTimeProvider();
         var store = new JobStore(time, TimeSpan.FromSeconds(60));
-        var a = store.Add(D1, Lines);
+        var a = store.Add(D1, JobValidator.TypeLines, Lines, null);
         store.TakeNext(D1);
         time.Advance(TimeSpan.FromSeconds(61));
         Assert.Equal(ResultOutcome.WrongDevice, store.Complete(a.JobId, D2, true, null));
@@ -199,7 +199,7 @@ public class JobStoreTests
     {
         var time = new FakeTimeProvider();
         var store = new JobStore(time, TimeSpan.FromSeconds(60));
-        var a = store.Add(D1, Lines);
+        var a = store.Add(D1, JobValidator.TypeLines, Lines, null);
         store.TakeNext(D1);
         time.Advance(TimeSpan.FromSeconds(60));
         Assert.Equal(JobStatus.Dispatched, store.Find(a.JobId)!.Status);
@@ -212,8 +212,30 @@ public class JobStoreTests
     {
         var store = new JobStore(new FakeTimeProvider(), TimeSpan.FromSeconds(60));
         var lines = new[] { new ReceiptLineDto("text", "hi", null, null, null, null, null, null, null) };
-        var job = store.Add(D1, lines);
+        var job = store.Add(D1, JobValidator.TypeLines, lines, null);
         lines[0] = new ReceiptLineDto("cut", null, null, null, null, null, null, null, null);
         Assert.Equal("text", store.Find(job.JobId)!.Lines![0].Type);
+    }
+
+    [Fact]
+    public void Add_Kitchen_StoresTypeAndDataAndDispatchesThem()
+    {
+        var store = new JobStore(new FakeTimeProvider(), TimeSpan.FromSeconds(60));
+        var data = new ReceiptData(null, "A20", "12", "", "Vlad", [new ReceiptItem("A", "1", null)], null, null, null, null, null);
+        var job = store.Add(D1, JobValidator.TypeKitchen, null, data);
+        Assert.Equal("kitchen", job.Type);
+        Assert.Null(job.Lines);
+        var taken = store.TakeNext(D1)!;
+        Assert.Equal("kitchen", taken.Type);
+        Assert.Same(data, taken.Data);
+    }
+
+    [Fact]
+    public void Add_Lines_HasTypeLinesAndNoData()
+    {
+        var store = new JobStore(new FakeTimeProvider(), TimeSpan.FromSeconds(60));
+        var job = store.Add(D1, JobValidator.TypeLines, Lines, null);
+        Assert.Equal("lines", job.Type);
+        Assert.Null(job.Data);
     }
 }

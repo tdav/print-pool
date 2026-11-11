@@ -15,14 +15,14 @@ public sealed class JobStore(TimeProvider timeProvider, TimeSpan dispatchTimeout
     // Задания, завершённые по DEVICE_TIMEOUT: поздний итог от устройства ещё можно принять.
     private readonly HashSet<Guid> timedOut = [];
 
-    public PrintJob Add(Guid deviceId, ReceiptLineDto[] lines)
+    public PrintJob Add(Guid deviceId, string type, ReceiptLineDto[]? lines, ReceiptData? data)
     {
         lock (this.sync)
         {
             var now = timeProvider.GetUtcNow();
             this.ExpireOverdue(now);
 
-            var job = new PrintJob(Guid.NewGuid(), deviceId, JobValidator.TypeLines, (ReceiptLineDto[])lines.Clone(), null, JobStatus.Queued, null, now, null, null);
+            var job = new PrintJob(Guid.NewGuid(), deviceId, type, (ReceiptLineDto[]?)lines?.Clone(), data, JobStatus.Queued, null, now, null, null);
             this.jobs.Add(job);
             return job;
         }

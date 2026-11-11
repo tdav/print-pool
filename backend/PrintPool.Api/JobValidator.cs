@@ -78,12 +78,12 @@ public static class JobValidator
         }
 
         var bill = type == TypeBill;
-        if (string.IsNullOrEmpty(data.BillNumber) || data.BillNumber.Length > 20)
+        if (string.IsNullOrWhiteSpace(data.BillNumber) || data.BillNumber.Length > 20)
         {
             return "billNumber обязателен, от 1 до 20 знаков.";
         }
 
-        if (string.IsNullOrEmpty(data.Table) || data.Table.Length > 20)
+        if (string.IsNullOrWhiteSpace(data.Table) || data.Table.Length > 20)
         {
             return "table обязателен, от 1 до 20 знаков.";
         }
@@ -93,7 +93,7 @@ public static class JobValidator
             return "hall не длиннее 40 знаков.";
         }
 
-        if (string.IsNullOrEmpty(data.Cashier) || data.Cashier.Length > 40)
+        if (string.IsNullOrWhiteSpace(data.Cashier) || data.Cashier.Length > 40)
         {
             return "cashier обязателен, от 1 до 40 знаков.";
         }
@@ -117,7 +117,7 @@ public static class JobValidator
                 return $"items[{n}]: пустой элемент.";
             }
 
-            if (string.IsNullOrEmpty(item.Name) || item.Name.Length > 100)
+            if (string.IsNullOrWhiteSpace(item.Name) || item.Name.Length > 100)
             {
                 return $"items[{n}].name обязателен, от 1 до 100 знаков.";
             }
