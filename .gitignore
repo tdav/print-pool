@@ -11,3 +11,4 @@ AdminPage.g.cs
 .superpowers/
 TestResults/
 firmware/PrintAgent/Secrets.cs
+export/
