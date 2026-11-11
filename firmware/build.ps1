@@ -38,10 +38,18 @@ if (-not $NoDeploy -and -not (Get-Command nanoff -ErrorAction SilentlyContinue))
 Write-Host "== Пакеты для $name ==" -ForegroundColor Cyan
 $packagesConfig = Join-Path $projectDir 'packages.config'
 if (-not (Test-Path $packagesConfig)) { throw "Нет файла $packagesConfig" }
-nuget restore $packagesConfig -PackagesDirectory $packagesDir -Verbosity quiet
-if ($LASTEXITCODE -ne 0) { throw "nuget restore завершился с кодом $LASTEXITCODE" }
-nuget install nanoFramework.Tools.MetadataProcessor.CLI -Version $mdpVersion -OutputDirectory $packagesDir -Verbosity quiet
-if ($LASTEXITCODE -ne 0) { throw "Не удалось получить Metadata Processor, код $LASTEXITCODE" }
+# nuget вызывается, только когда чего-то не хватает: nuget.exe 7.3 после работы может не завершиться,
+# и сборка ждала бы его бесконечно, хотя все пакеты уже на месте.
+$missing = @(([xml](Get-Content $packagesConfig -Raw)).packages.package |
+    Where-Object { -not (Test-Path (Join-Path $packagesDir "$($_.id).$($_.version)\lib")) })
+if ($missing.Count -gt 0) {
+    nuget restore $packagesConfig -PackagesDirectory $packagesDir -NonInteractive -Verbosity quiet
+    if ($LASTEXITCODE -ne 0) { throw "nuget restore завершился с кодом $LASTEXITCODE" }
+}
+if (-not (Test-Path (Join-Path $packagesDir "nanoFramework.Tools.MetadataProcessor.CLI.$mdpVersion\content"))) {
+    nuget install nanoFramework.Tools.MetadataProcessor.CLI -Version $mdpVersion -OutputDirectory $packagesDir -NonInteractive -Verbosity quiet
+    if ($LASTEXITCODE -ne 0) { throw "Не удалось получить Metadata Processor, код $LASTEXITCODE" }
+}
 
 # Берём библиотеки только тех пакетов, что перечислены в packages.config проекта:
 # иначе чужие пакеты из общей папки попали бы в образ.
